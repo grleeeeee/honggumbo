@@ -80,6 +80,8 @@
   .flash{position:absolute;inset:0;background:#fff;z-index:11;animation:flash2 .5s forwards;pointer-events:none}
   @keyframes flash2{from{opacity:1}to{opacity:0}}
   .snaptag{position:absolute;top:56px;left:10px;z-index:11;background:#3b1f12;color:#fff;border-radius:10px;padding:3px 8px;font-size:13px;animation:popin .4s cubic-bezier(.2,1.6,.4,1),fade .5s 2s forwards}
+  .mirror{display:flex;gap:10px;margin:4px 0}.mirror>div{flex:1;border-radius:12px;padding:6px 4px;font-size:13px}
+  .mirror>div:first-child{background:#ffe4ef}.mirror>div:last-child{background:#eee}.mirror big{display:block;font-size:30px;line-height:1.1}
   .bets{text-align:left;font-size:13.5px;line-height:1.55;margin-top:4px}
   .album{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
   .album figure{margin:0;background:#fff;padding:4px 4px 2px;border-radius:6px;box-shadow:0 2px 6px #0003;transform:rotate(var(--r))}
@@ -170,7 +172,7 @@ const POPS = {
 
 // 무대 안 이벤트 연출: 빨간 깜빡임 + 경고 테이프 + 배너 (좋은 일은 금빛 광선 + 폭죽)
 // 기본은 2.3초 뒤 자동으로 넘어가고 무대를 탭하면 바로 넘어감. hold 면 직접 지울 때까지 유지
-function stageAlert({ kind, icon, title, text, tape = 'WARNING', hold = false }) {
+function stageAlert({ kind, icon, title, text, tape = 'WARNING', hold = false, ms = 2300 }) {
   const ov = $('ov'); if (!ov) return Promise.resolve();
   ov.className = 'on ' + kind;
   ov.querySelector('.ic').textContent = icon; ov.querySelector('.tt').textContent = title;
@@ -187,7 +189,7 @@ function stageAlert({ kind, icon, title, text, tape = 'WARNING', hold = false })
   ov.style.pointerEvents = 'auto';
   return new Promise(done => {
     const fin = () => { clearTimeout(timer); ov.onclick = null; ov.className = ''; ov.style.pointerEvents = 'none'; done(); };
-    const timer = setTimeout(fin, 2300); ov.onclick = fin;
+    const timer = setTimeout(fin, ms); ov.onclick = fin;
   });
 }
 const clearAlert = () => { if ($('ov')) $('ov').className = ''; };
@@ -271,6 +273,22 @@ function interview(gain) {
       clearAlert(); s.say = say; $('bubble').innerHTML = typoHtml(say); chat(rebut); Sfx.play('pop'); done();
     }, 'etc')));
   });
+}
+
+// 🪞 거울 보기: 하루 안 지나감, 하루 한 번. 금보 생각 vs 체중계 현실
+let mirrorDay = 0;
+const MIRROR_SAY = ['나너무귀여웡💗 (자기애충만모먼트)', '오늘 {붓기빠진듯|붓기 빠진 듯} 💗', '거울 속 나 너무 {뿌득해|뿌듯해}💗', '이 정도면 {48키로|48kg} 아님?'];
+const MIRROR_FRIENDS = [['소주래인', '거울이 금보 보고 금 감 ㅋㅋㅋ'], ['갈비겨레', '금보 조용 금보 거울 그만 보세요'],
+  ['지코치님', '회원님 거울 말고 체중계를 믿으세요. 대체 살 언제 빼요?'], ['치킨창민', '거울 속엔 치킨이 없어 ㅋㅋ'], ['양주서영', '필터 끄고 다시 봐']];
+async function mirror() {
+  if (busy || mirrorDay === s.day) return; busy = true; mirrorDay = s.day;
+  $('btns').classList.add('wait');
+  s.say = MIRROR_SAY[Math.floor(Math.random() * MIRROR_SAY.length)]; $('bubble').innerHTML = typoHtml(s.say); Sfx.play('pop');
+  await stageAlert({ kind: 'info', icon: '🪞', title: '거울 vs 체중계', ms: 3500, text: `<div class="mirror">
+    <div>💭 금보 생각<big>48kg</big>나너무귀여웡💗</div>
+    <div>⚖️ 체중계<big>${s.w.toFixed(1)}kg</big>${s.w >= 90 ? '⚠️ 1인용입니다' : `차이 <b>${(s.w - 48).toFixed(1)}kg</b>`}</div></div>` });
+  chat(MIRROR_FRIENDS[Math.floor(Math.random() * MIRROR_FRIENDS.length)]);
+  busy = false; render();
 }
 
 // 결과 공유 카드 (1080x1350 이미지 → 공유 시트, 안 되면 다운로드)
@@ -370,6 +388,7 @@ function render() {
   if (s.over) return end(add);
   Stage.show(s);
   for (const id in ACTIONS) add(ACTIONS[id][0], ACTIONS[id][1], () => day(id), KIND[id] || 'etc');
+  add('🪞 거울 보기', mirrorDay === s.day ? '오늘은 이미 봄' : '하루 안 지나감', mirror, 'etc');
 }
 
 function end(add) {
@@ -391,7 +410,7 @@ function end(add) {
     $('stage').style.aspectRatio = 'auto';
     document.body.classList.add('ended'); // 엔딩 사진은 커서 화면 분할 해제
     $('msg').innerHTML = `<b>🐷 돼지엔딩</b><br>${s.day}일 만에 ${s.w.toFixed(0)}kg. 홍금보는 이제 쿵푸가 아니라 구르기를 한다.<br>`
-      + `통장 ${s.money.toLocaleString()}원 · 맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회<br>"내일부터" 선언 ${s.tomorrow}회 · 냉장고 습격 ${s.raids}회<br>(80%의 사람이 여기서 끝나요)` + badges;
+      + `통장 ${s.money.toLocaleString()}원 · 맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회<br>"내일부터" 선언 ${s.tomorrow}회 · 냉장고 습격 ${s.raids}회` + badges;
     Sfx.play('fail'); setTimeout(() => Sfx.play('oink'), 1500);
   }
   add('📤 결과 공유', '단톡방에 박제', shareCard, 'food');
