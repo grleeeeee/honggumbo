@@ -284,6 +284,8 @@ const Stage = (() => {
     });
   }
 
+  // 지금 무대 화면을 사진으로 (박제 앨범용)
+  const snap = () => new Promise(done => sc ? game.renderer.snapshot(img => done(img || null), 'image/jpeg', 0.85) : done(null));
   const destroy = () => { if (game) game.destroy(true); sc = null; };
-  return { init, show, destroy };
+  return { init, show, snap, destroy };
 })();

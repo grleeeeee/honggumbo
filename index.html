@@ -76,6 +76,14 @@
   #ov.alert .tt{color:#e53935}#ov.good .tt{color:#f57f17}
   .ban .tx{font-size:14px;line-height:1.45}.ban .tx b{color:#e53935;font-weight:400}.ban .tx small{display:block;color:#aaa;font-size:11px;margin-top:2px}
   #btns.wait{opacity:.45;pointer-events:none}
+  #btns.four{grid-template-columns:1fr 1fr}#btns.four button{font-size:15px;padding:9px 4px}
+  .flash{position:absolute;inset:0;background:#fff;z-index:11;animation:flash2 .5s forwards;pointer-events:none}
+  @keyframes flash2{from{opacity:1}to{opacity:0}}
+  .snaptag{position:absolute;top:56px;left:10px;z-index:11;background:#3b1f12;color:#fff;border-radius:10px;padding:3px 8px;font-size:13px;animation:popin .4s cubic-bezier(.2,1.6,.4,1),fade .5s 2s forwards}
+  .bets{text-align:left;font-size:13.5px;line-height:1.55;margin-top:4px}
+  .album{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+  .album figure{margin:0;background:#fff;padding:4px 4px 2px;border-radius:6px;box-shadow:0 2px 6px #0003;transform:rotate(var(--r))}
+  .album img{width:100%;display:block;border-radius:3px}.album figcaption{font-size:10.5px;line-height:1.2;padding:2px 0}
   #kg.fake{color:#e85d75}#kg.err{font-size:15px;color:#c0392b}
   .shake{animation:shk .4s}
   @keyframes shk{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
@@ -110,7 +118,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let s = Object.assign(newGame(), { badges: [] }), busy = false, newBadges = [];
+let s = Object.assign(newGame(), { badges: [] }), busy = false, newBadges = [], album = [], bets = [], lastInterview = -99;
 const typoHtml = t => t.replace(/\{([^|]+)\|([^}]+)\}/g, '<u class="typo" data-r="$2">$1</u>');
 const KIND = { buldak: 'food', drink: 'food', itaewon: 'food', salad: 'food', boxing: 'sport', running: 'sport', hiking: 'sport', dance: 'sport', conv: 'work', pcbang: 'work' };
 
@@ -210,13 +218,69 @@ function after() {
   else if (s.w >= 90) { kg.className = 'err'; kg.textContent = '⚠️ 1인용 체중계입니다'; back(1300); }
 }
 
+// 🎲 친구들 내기판: 시작할 때 4명이 랜덤으로 걸고, 엔딩에서 판정
+function makeBets() {
+  const d = 15 + Math.floor(Math.random() * 8);
+  const all = [
+    ['소주래인', `금보 ${d}일 안에 100kg 찍는다 ㅋㅋ 소주 한 병 걸게`, s => s.over === 'pig' && s.day <= d],
+    ['치킨창민', '치킨 걸고 돼지엔딩', s => s.over === 'pig'],
+    ['지코치님', '회원님 이번엔 믿어요... 50kg 성공!', s => s.over === 'win'],
+    ['갈비겨레', '금보 조용. 책 3번 펴고 다 실패한다', s => s.books >= 3],
+    ['누들석민', '냉장고 습격 무조건 한 번은 함', s => s.raids >= 1],
+    ['양주서영', '통장 마이너스 간다에 양주 한 병', s => s.money < 0],
+    ['관장님', '체육관(복싱) 3번도 안 온다', s => (s.cnt.boxing || 0) < 3],
+  ];
+  // 소주래인·치킨창민·지코치님은 고정, 나머지 중 2명 랜덤
+  return [...all.slice(0, 3), ...all.slice(3).sort(() => Math.random() - 0.5).slice(0, 2)];
+}
+const betLines = done => bets.map(([w, t, ok]) => `${done ? (ok(s) ? '✅' : '❌') : AV[w]} <b>${w}</b> ${t}`).join('<br>');
+
+// 📸 소주래인의 박제: 굴욕 순간마다 무대를 찍어서 앨범에 모음 (최대 9장)
+const SHAME = { skip: '운동복만 입고 소파행', raid: '새벽 3시 냉장고 앞', starve: '배달 음식 3개 동시 섭취', faint: '체력 방전 후 배달',
+  binge: '단식 다음 날 폭식', danger: '90kg 돌파 기념사진', club: '이태원 막춤', selfie: '보정 전 원본', eat: '또 먹음 (85kg+)' };
+async function snapShame() {
+  if (album.length >= 9 || !$('stage')) return;
+  let key = s.events.find(e => SHAME[e]);
+  if (!key && ['club', 'selfie'].includes(s.anim) && Math.random() < 0.6) key = s.anim;
+  if (!key && s.anim === 'eat' && s.w >= 85 && Math.random() < 0.3) key = 'eat';
+  if (!key || album.filter(a => a.key === key).length >= 2) return; // 같은 굴욕은 2장까지
+  const img = await Stage.snap(); if (!img) return;
+  const c = document.createElement('canvas'); c.width = 300; c.height = 250; c.getContext('2d').drawImage(img, 0, 0, 300, 250);
+  album.push({ key, src: c.toDataURL('image/jpeg', 0.75), cap: `D${s.day} ${SHAME[key]}` });
+  Sfx.play('shutter');
+  const f = document.createElement('div'); f.className = 'flash'; $('stage').append(f); setTimeout(() => f.remove(), 600);
+  const tag = document.createElement('div'); tag.className = 'snaptag'; tag.textContent = '📸 소주래인이 단톡방에 박제함';
+  $('stage').append(tag); setTimeout(() => tag.remove(), 2600);
+  await sleep(700);
+}
+
+// 🎤 긴급 기자회견: 하루에 2.5kg 넘게 찐 날 15% 확률, 한 번 하면 6일 쉼 (어쩌다 한 번)
+const EXCUSES = [
+  ['💧 물만 먹어도 쪄요', '진짜 물만 {먹엇는대|먹었는데} ..', ['소주래인', '물이 소주였겠지 ㅋㅋㅋㅋ']],
+  ['💪 이거 다 근육이에요', '근육이 {무거워서그럼|무거워서 그럼} 💗', ['관장님', '체육관 세 번 온 근육?']],
+  ['⚖️ 체중계가 고장났쓰', '체중계가 {고장난거임|고장 난 거임} 진짜임', ['지코치님', '회원님 체중계만 세 번째예요. 대체 살 언제 빼요?']],
+  ['🎈 부은 거예요', '어제 라면 먹어서 {부은거|부은 거} {뿐임니다|뿐입니다}', ['누들석민', '그 라면 내가 끓여줌 ㅋㅋ']],
+];
+function interview(gain) {
+  lastInterview = s.day;
+  stageAlert({ kind: 'info', icon: '🎤', title: '긴급 기자회견', text: `기자: 오늘 <b>+${gain.toFixed(1)}kg</b>.<br>살찐 이유를 말씀해주세요`, hold: true });
+  Sfx.play('shutter');
+  return new Promise(done => {
+    const b = $('btns'); b.innerHTML = ''; b.className = 'four';
+    EXCUSES.forEach(([label, say, rebut]) => b.append(btn(label, '', () => {
+      clearAlert(); s.say = say; $('bubble').innerHTML = typoHtml(say); chat(rebut); Sfx.play('pop'); done();
+    }, 'etc')));
+  });
+}
+
 // 결과 공유 카드 (1080x1350 이미지 → 공유 시트, 안 되면 다운로드)
 async function shareCard() {
   await document.fonts.ready;
-  const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
+  const H = album.length ? 1860 : 1480;
+  const c = document.createElement('canvas'); c.width = 1080; c.height = H;
   const x = c.getContext('2d'), pig = s.over === 'pig';
-  const bg = x.createLinearGradient(0, 0, 0, 1350); bg.addColorStop(0, '#ffe9c7'); bg.addColorStop(1, '#ffd6e0');
-  x.fillStyle = bg; x.fillRect(0, 0, 1080, 1350);
+  const bg = x.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#ffe9c7'); bg.addColorStop(1, '#ffd6e0');
+  x.fillStyle = bg; x.fillRect(0, 0, 1080, H);
   const img = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = pig ? 'img/pig.jpg' : 'img/face.png'; });
   x.save(); x.beginPath(); x.roundRect(90, 160, 900, 640, 40); x.fillStyle = '#fff'; x.fill(); x.clip();
   const k = pig ? Math.max(900 / img.width, 640 / img.height) : Math.min(900 / img.width, 600 / img.height);
@@ -229,7 +293,20 @@ async function shareCard() {
     `냉장고 습격 ${s.raids}회 · 맞춤법 ${s.fixes}개 교정당함`, `통장 ${s.money.toLocaleString()}원`].forEach((l, i) => x.fillText(l, 540, 970 + i * 58));
   x.font = '38px Jua'; x.fillStyle = '#8e24aa';
   for (let i = 0; i < s.badges.length; i += 3) x.fillText(s.badges.slice(i, i + 3).join('  '), 540, 1215 + (i / 3) * 48);
-  x.fillStyle = '#9a7a6a'; x.font = '34px Jua'; x.fillText('너도 키워봐 👉 ' + location.host + location.pathname, 540, 1315);
+  const won = bets.filter(([, , ok]) => ok(s)).map(([w]) => w);
+  x.fillStyle = '#3b2a20'; x.font = '40px Jua';
+  x.fillText('🎲 내기 승자: ' + (won.length ? won.join(', ') : '없음'), 540, 1355);
+  if (album.length) { // 박제 사진 최대 3장
+    x.fillText('📸 소주래인의 박제 앨범', 540, 1430);
+    const pics = await Promise.all(album.slice(0, 3).map(a => new Promise(r => { const i = new Image(); i.onload = () => r([i, a.cap]); i.src = a.src; })));
+    pics.forEach(([im, cap], i) => {
+      const px = 60 + i * 330, py = 1460;
+      x.save(); x.translate(px + 150, py + 125); x.rotate((i - 1) * 0.04);
+      x.fillStyle = '#fff'; x.fillRect(-160, -135, 320, 300); x.drawImage(im, -150, -125, 300, 250);
+      x.fillStyle = '#3b2a20'; x.font = '24px Jua'; x.fillText(cap, 0, 150); x.restore();
+    });
+  }
+  x.fillStyle = '#9a7a6a'; x.font = '34px Jua'; x.fillText('너도 키워봐 👉 ' + location.host + location.pathname, 540, H - 40);
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
   const file = new File([blob], 'honggumbo.png', { type: 'image/png' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], text: '홍금보 키우기 결과 🐷 ' + location.href }).catch(() => {});
@@ -251,14 +328,16 @@ async function day(id) {
   if (busy) return; busy = true;
   $('btns').classList.add('wait');
   try {
-    let w = s.w; act(s, id); show(w); $('btns').classList.add('wait');
+    const w0 = s.w; let w = s.w; act(s, id); show(w); $('btns').classList.add('wait');
     await sleep(800); // 행동 장면 감상 시간
-    await events();
+    await snapShame(); await events();
     if (!s.over) {
       if (tempted(s)) { const eat = await temptChoice(); w = s.w; temptation(s, eat); }
       else { s.events = []; w = s.w; skipTemptation(s); }
       show(w); $('btns').classList.add('wait');
-      await sleep(500); await events();
+      await sleep(500); await snapShame(); await events();
+      const gain = s.w - w0;
+      if (!s.over && gain >= 2.5 && s.day - lastInterview >= 6 && Math.random() < 0.15) { await sleep(400); await interview(gain); await sleep(1200); }
     }
   } finally { busy = false; render(); }
 }
@@ -295,7 +374,12 @@ function render() {
 
 function end(add) {
   $('btns').className = 'two';
-  const badges = s.badges.length ? `<div class="badges">${s.badges.map(b => `<span class="badge">${b}</span>`).join('')}</div>` : '';
+  const badges = (s.badges.length ? `<div class="badges">${s.badges.map(b => `<span class="badge">${b}</span>`).join('')}</div>` : '')
+    + `<div class="bets"><b>🎲 내기 결과</b><br>${betLines(true)}</div>`
+    + (album.length ? `<div style="margin-top:8px"><b>📸 소주래인의 박제 앨범 (${album.length}장)</b></div><div class="album">${album.map((a, i) =>
+      `<figure style="--r:${(i % 2 ? 1 : -1) * (1 + i % 3)}deg"><img src="${a.src}"><figcaption>${a.cap}</figcaption></figure>`).join('')}</div>` : '');
+  const winners = bets.filter(([, , ok]) => ok(s));
+  if (winners.length) chat([winners[0][0], `내기 이겼다 ㅋㅋㅋ 금보 ${winners[0][0] === '지코치님' ? '회원님 축하해요!' : '빨리 내놔'}`]);
   if (s.over === 'win') {
     s.anim = 'win'; Stage.show(s);
     $('bubble').innerHTML = typoHtml('해낸 나 너무 {뿌득해|뿌듯해}💗 이제 치킨 먹어도 {돼지|되지}?');
@@ -314,6 +398,8 @@ function end(add) {
   add('🔄 다시 도전', '', () => location.reload(), 'etc');
 }
 chat(['지코치님', '회원님 오늘부터라고요? 대체 살 언제 빼요?']);
+bets = makeBets();
+s.log.push(`<div class="bets"><b>🎲 친구들 내기판</b><br>${betLines(false)}</div>`);
 Stage.init($('stage')).then(render);
 </script>
 </body>
