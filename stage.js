@@ -95,7 +95,7 @@ const Stage = (() => {
 
   // 손에 드는 소품 (문자열은 이모지, {p}는 행동 소품)
   const ITEMS = {
-    box: ['🥊', '🥊'], club: ['{p}'], eat: ['🥢'], drink: ['{p}'], conv: ['🍙'], win: ['🏆'],
+    box: ['🥊', '🥊'], club: ['{p}'], selfie: ['📱'], eat: ['🥢'], drink: ['{p}'], conv: ['🍙'], win: ['🏆'],
     hike: [() => { const g = G(); g.lineStyle(4, 0x7a4a1a).lineBetween(0, -6, 0, 70); return g; }],
     book: [() => { const g = G(); g.fillStyle(0x22aa66).fillRect(-26, -34, 52, 36); g.fillStyle(0xffffff).fillRect(-1, -34, 2, 36); return g; }],
   };
@@ -195,6 +195,28 @@ const Stage = (() => {
       const gr = T(255, 200, '꼬르륵', 16, { color: '#c0392b' }); fg.add(gr); floaty(gr);
       if (s.prop) { const e = T(110, 100, s.prop, 30); fg.add(e); loop(e, { angle: 12 }, 120); }
     },
+    selfie(p, bg, fg) {
+      const g = G(); g.fillStyle(0xffd6e8).fillRect(0, 0, W, H); bg.add(g);
+      ['💗', '✨', '💖', '✨'].forEach((e, i) => { const h = T(40 + i * 95, 150 - (i % 2) * 60, e, 26); bg.add(h); floaty(h, i * 350); });
+      p.armR.angle = -160;
+      loop(p.head, { scaleX: 0.78 }, 700, { hold: 500 }); // 보정 앱 갸름 필터
+      const flash = sc.add.rectangle(W / 2, H / 2, W, H, 0xffffff, 0); fg.add(flash);
+      sc.tweens.add({ targets: flash, alpha: 0.9, duration: 80, yoyo: true, repeat: -1, repeatDelay: 1400 });
+      fg.add(T(300, 40, '보정 ON', 16, { color: '#e85d75' }));
+    },
+    raid(p, bg, fg) {
+      const g = G(); g.fillStyle(0x16203a).fillRect(0, 0, W, H);
+      g.fillStyle(0xeeeeee).fillRoundedRect(250, 60, 90, 192, 8);          // 냉장고
+      g.fillStyle(0xfff3a0).fillRect(258, 70, 74, 172);                    // 텅 빈 안쪽 불빛
+      g.fillStyle(0xfff3a0, 0.25).fillTriangle(258, 70, 258, 242, 120, 252);
+      g.fillStyle(0xdddddd).fillRect(258, 120, 74, 3).fillRect(258, 175, 74, 3);
+      bg.add([g, T(50, 40, '🌙', 30), T(295, 100, '🕸️', 22)]);
+      table(fg); fg.add([T(110, 206, '🍗', 28), T(160, 210, '🥡', 26), T(210, 206, '🍰', 28)]);
+      blush(p);
+      p.armR.angle = -20; loop(p.armR, { angle: 150 }, 300);
+      p.armL.angle = 20; loop(p.armL, { angle: -150 }, 300, { delay: 150 });
+      loop(p.head, { scaleX: 1.06, scaleY: 0.93 }, 100);
+    },
     win(p, bg) {
       p.armR.angle = -165; p.armL.angle = 165;
       const a = T(60, 90, '🎉', 34), b = T(300, 90, '🎊', 34); bg.add([a, b]); floaty(a); floaty(b, 700);
@@ -214,6 +236,13 @@ const Stage = (() => {
     const p = hong(Math.max(0, Math.min(1.1, (s.w - 50) / 50)), s.w >= 90, items[0], items[1]);
     root.add([sky, bg, floor, p.root, fg]);
     (SCENES[s.anim] || SCENES.idle)(p, bg, fg, s);
+    if (s.w >= 90) { // 90kg 넘으면 쿵쿵: 화면 흔들림 + 바닥 금
+      const c = G(); c.lineStyle(2, 0x6b4f2a);
+      [[150, 254, 130, 270, 112, 276], [210, 254, 232, 268, 250, 278], [180, 256, 178, 278, 160, 280]].forEach(([a, b, c1, d, e, f2]) =>
+        c.beginPath().moveTo(a, b).lineTo(c1, d).lineTo(e, f2).strokePath());
+      root.addAt(c, 3);
+      sc.cameras.main.shake(450, 0.012);
+    }
   }
 
   function init(parent) {

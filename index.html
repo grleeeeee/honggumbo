@@ -41,26 +41,44 @@
   button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--c,#f0b9a0)}
   button .e{display:block;font-size:26px;line-height:1.2}
   button small{display:block;font-size:11px;color:#9a7a6a;margin-top:1px}
+  #feed{position:absolute;left:8px;bottom:30px;display:flex;flex-direction:column;gap:4px;z-index:6;max-width:72%;pointer-events:none}
+  .cmt{background:#fffe;border-radius:14px;padding:3px 10px 3px 3px;font-size:13px;display:flex;align-items:center;gap:6px;box-shadow:0 2px 6px #0002;animation:slide .3s,fade .5s 3.2s forwards}
+  .cmt i{width:22px;height:22px;border-radius:50%;background:linear-gradient(45deg,#f9a825,#e91e63,#8e24aa);color:#fff;font-style:normal;display:grid;place-items:center;font-size:11px;flex:none}
+  .cmt b{font-weight:400;color:#8e24aa}
+  @keyframes slide{from{transform:translateX(-30px);opacity:0}}
+  @keyframes fade{to{opacity:0}}
+  #toast{position:fixed;top:12px;left:50%;transform:translate(-50%,-150%);background:#3b2a20;color:#ffd54f;padding:10px 16px;border-radius:14px;z-index:20;transition:transform .35s;font-size:16px;white-space:nowrap}
+  #toast.on{transform:translate(-50%,0)}
+  #kg.fake{color:#e85d75}#kg.err{font-size:15px;color:#c0392b}
+  .shake{animation:shk .4s}
+  @keyframes shk{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  #mute{background:none;border:0;font-size:20px;width:auto;box-shadow:none;padding:0 6px 0 0}
+  .badges{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px}
+  .badge{background:#fff3c4;border-radius:999px;padding:2px 8px;font-size:13px}
   .food{--c:#ff8a65}.sport{--c:#66bb6a}.work{--c:#64b5f6}.etc{--c:#ba68c8}
 </style>
 </head>
 <body>
-<header><h1>🥋 홍금보 키우기</h1><div id="kg"></div></header>
+<header><h1>🥋 홍금보 키우기</h1><div style="display:flex;align-items:center"><button id="mute"></button><div id="kg"></div></div></header>
+<div id="toast"></div>
 <div class="chips"><span class="chip">🎯 50kg</span><span class="chip">📅 <span id="day"></span>일차</span><span class="chip">💰 <span id="money"></span>원</span><span class="chip">✏️ <span id="fixes"></span></span></div>
 <div id="stage">
   <div id="bubble"></div>
+  <div id="feed"></div>
   <div id="hint">✏️ 틀린 맞춤법을 눌러서 고쳐줘</div>
 </div>
 <div class="bars">💪 의지력<div class="bar"><i id="will" style="background:linear-gradient(90deg,#ff8a80,#e53935)"></i></div>
-⚡ 체력<div class="bar"><i id="sta" style="background:linear-gradient(90deg,#80cbc4,#26a69a)"></i></div></div>
+⚡ 체력<div class="bar"><i id="sta" style="background:linear-gradient(90deg,#80cbc4,#26a69a)"></i></div>
+🍔 배고픔<div class="bar"><i id="hunger" style="background:linear-gradient(90deg,#ffe082,#ff9800)"></i></div></div>
 <div id="event"></div>
 <div id="msg"></div>
 <div id="btns"></div>
 <script src="game.js"></script>
 <script src="stage.js"></script>
+<script src="sfx.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-let s = newGame(), phase = 'act';
+let s = Object.assign(newGame(), { badges: [] }), phase = 'act';
 const typoHtml = t => t.replace(/\{([^|]+)\|([^}]+)\}/g, '<u class="typo" data-r="$2">$1</u>');
 const KIND = { buldak: 'food', drink: 'food', itaewon: 'food', salad: 'food', boxing: 'sport', running: 'sport', hiking: 'sport', dance: 'sport', conv: 'work', pcbang: 'work' };
 
@@ -78,7 +96,80 @@ function stats() {
   $('fixes').textContent = s.fixes;
   $('will').style.width = s.will + '%';
   $('sta').style.width = s.sta + '%';
+  $('hunger').style.width = s.hunger + '%';
 }
+
+// 업적 (놀림 뱃지)
+const BADGES = [
+  ['📚 자칭 독서왕', s => s.books >= 5],
+  ['🔥 강철 위장', s => s.streak.id === 'buldak' && s.streak.n >= 3],
+  ['🕺 이태원 주민', s => (s.cnt.itaewon || 0) >= 3],
+  ['✏️ 국어 선생님 빙의', s => s.fixes >= 15],
+  ['📅 내일의 아이콘', s => s.tomorrow >= 5],
+  ['🤳 보정의 신', s => s.selfies >= 3],
+  ['🌙 냉장고 털이범', s => s.raids >= 2],
+  ['🍺 간 혹사', s => (s.cnt.drink || 0) + (s.cnt.itaewon || 0) >= 5],
+  ['💸 텅장', s => s.money <= -100000],
+  ['🥊 샌드백이 이김', s => (s.cnt.boxing || 0) >= 5 && s.w >= 75],
+  ['🐷 돼지 예약', s => s.w >= 90],
+];
+let toasts = [];
+function toast(msg) {
+  toasts.push(msg); if (toasts.length > 1) return;
+  const next = () => {
+    if (!toasts.length) return;
+    $('toast').textContent = toasts[0]; $('toast').classList.add('on'); Sfx.play('fanfare');
+    setTimeout(() => { $('toast').classList.remove('on'); setTimeout(() => { toasts.shift(); next(); }, 400); }, 1800);
+  };
+  next();
+}
+
+// 행동 직후 연출: 효과음, 친구 댓글, 업적, 체중계 장난
+const SND = { eat: 'chomp', drink: 'gulp', club: 'beat', dance: 'beat', box: 'punch', conv: 'beep', pc: 'type', selfie: 'shutter', raid: 'chomp', run: 'step', hike: 'step', sad: 'growl', book: 'snore', rest: 'snore' };
+function after() {
+  Sfx.play(SND[s.anim]);
+  if (s.w >= 85 && ['eat', 'raid', 'drink'].includes(s.anim)) setTimeout(() => Sfx.play('oink'), 450);
+  if (s.w >= 90) Sfx.play('thud');
+  if (s.comment && $('feed')) {
+    const el = document.createElement('div'); el.className = 'cmt';
+    el.innerHTML = `<i>${s.comment[0][0]}</i><span><b>@${s.comment[0]}</b> ${s.comment[1]}</span>`;
+    $('feed').append(el); setTimeout(() => el.remove(), 3800);
+    while ($('feed').children.length > 2) $('feed').firstChild.remove();
+  }
+  for (const [name, ok] of BADGES) if (!s.badges.includes(name) && ok(s)) { s.badges.push(name); toast('🏅 업적: ' + name); }
+  if (s.over) return;
+  const kg = $('kg'), back = ms => setTimeout(() => { kg.className = 'shake'; stats(); }, ms);
+  if (s.anim === 'selfie') { kg.className = 'fake'; kg.innerHTML = '48.0<small>kg ✨</small>'; back(1600); }
+  else if (s.w >= 90) { kg.className = 'err'; kg.textContent = '⚠️ 1인용 체중계입니다'; back(1300); }
+}
+
+// 결과 공유 카드 (1080x1350 이미지 → 공유 시트, 안 되면 다운로드)
+async function shareCard() {
+  await document.fonts.ready;
+  const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
+  const x = c.getContext('2d'), pig = s.over === 'pig';
+  const bg = x.createLinearGradient(0, 0, 0, 1350); bg.addColorStop(0, '#ffe9c7'); bg.addColorStop(1, '#ffd6e0');
+  x.fillStyle = bg; x.fillRect(0, 0, 1080, 1350);
+  const img = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = pig ? 'img/pig.jpg' : 'img/face.png'; });
+  x.save(); x.beginPath(); x.roundRect(90, 160, 900, 640, 40); x.fillStyle = '#fff'; x.fill(); x.clip();
+  const k = pig ? Math.max(900 / img.width, 640 / img.height) : Math.min(900 / img.width, 600 / img.height);
+  x.drawImage(img, 540 - img.width * k / 2, pig ? 160 : 180, img.width * k, img.height * k); x.restore();
+  x.textAlign = 'center'; x.fillStyle = '#e85d75'; x.font = '64px Jua'; x.fillText('🥋 홍금보 키우기', 540, 110);
+  x.fillStyle = '#3b2a20'; x.font = '70px Jua';
+  x.fillText(pig ? `${s.day}일 만에 ${s.w.toFixed(0)}kg 달성 🐷` : `${s.day}일 만에 50kg 성공 🎉`, 540, 890);
+  x.font = '42px Jua';
+  [`"내일부터 다이어트" 선언 ${s.tomorrow}회`, `책 읽기 실패 ${s.books}회 · 셀카 보정 ${s.selfies}회`,
+    `냉장고 습격 ${s.raids}회 · 맞춤법 ${s.fixes}개 교정당함`, `통장 ${s.money.toLocaleString()}원`].forEach((l, i) => x.fillText(l, 540, 970 + i * 58));
+  x.font = '38px Jua'; x.fillStyle = '#8e24aa';
+  for (let i = 0; i < s.badges.length; i += 3) x.fillText(s.badges.slice(i, i + 3).join('  '), 540, 1215 + (i / 3) * 48);
+  x.fillStyle = '#9a7a6a'; x.font = '34px Jua'; x.fillText('너도 키워봐 👉 ' + location.host + location.pathname, 540, 1315);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  const file = new File([blob], 'honggumbo.png', { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], text: '홍금보 키우기 결과 🐷 ' + location.href }).catch(() => {});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'honggumbo.png'; a.click();
+}
+$('mute').textContent = Sfx.muted ? '🔇' : '🔊';
+$('mute').onclick = () => { $('mute').textContent = Sfx.toggle() ? '🔇' : '🔊'; };
 
 function delta(d) {
   if (Math.abs(d) < 0.05 || !$('stage')) return;
@@ -99,7 +190,7 @@ function render() {
     e.innerHTML = `<span class="e">${emoji}</span>${rest.join(' ')}` + (sub ? `<small>${sub}</small>` : '');
     e.onclick = fn; b.append(e);
   };
-  const run = fn => { const w = s.w; fn(); render(); delta(s.w - w); };
+  const run = fn => { const w = s.w; fn(); render(); delta(s.w - w); after(); };
   if (s.over) return end(add);
   Stage.show(s);
   if (phase === 'act') for (const id in ACTIONS) add(ACTIONS[id][0], ACTIONS[id][1], () => run(() => {
@@ -110,25 +201,31 @@ function render() {
   else {
     b.className = 'two';
     $('event').textContent = '🌙 ' + s.tempt[0] + '!';
-    $('bubble').innerHTML = typoHtml(s.tempt[1]);
-    add('😤 참는다', '의지력 -20 (모자라면 실패)', () => run(() => { temptation(s, false); phase = 'act'; }), 'sport');
+    // 행동 대사를 먼저 보여주고 잠시 뒤 유혹 대사로 전환
+    const line = s.tempt[1];
+    setTimeout(() => { if (phase === 'tempt' && s.tempt[1] === line) $('bubble').innerHTML = typoHtml(line); }, 1800);
+    add('😤 참는다', `의지력 -${resistCost(s)}${s.hunger >= 70 ? ' (배고픔!)' : ''}`, () => run(() => { temptation(s, false); phase = 'act'; }), 'sport');
     add('😋 먹는다', '+체중', () => run(() => { temptation(s, true); phase = 'act'; }), 'food');
   }
 }
 
 function end(add) {
-  $('btns').className = 'one';
+  $('btns').className = 'two';
+  const badges = s.badges.length ? `<div class="badges">${s.badges.map(b => `<span class="badge">${b}</span>`).join('')}</div>` : '';
   if (s.over === 'win') {
+    Sfx.play('fanfare');
     s.anim = 'win'; Stage.show(s);
     $('bubble').innerHTML = typoHtml('해낸 나 너무 {뿌득해|뿌듯해}💗 이제 치킨 먹어도 {돼지|되지}?');
-    $('msg').innerHTML = `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 상위 5%의 의지력!<br>맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회`;
+    $('msg').innerHTML = `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 상위 20%의 의지력!<br>맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회` + badges;
   } else {
+    Sfx.play('fail'); setTimeout(() => Sfx.play('oink'), 1500);
     Stage.destroy();
     $('stage').innerHTML = '<img id="pig" src="img/pig.jpg" alt="돼지엔딩">';
     $('stage').style.aspectRatio = 'auto';
     $('msg').innerHTML = `<b>🐷 돼지엔딩</b><br>${s.day}일 만에 ${s.w.toFixed(0)}kg. 홍금보는 이제 쿵푸가 아니라 구르기를 한다.<br>`
-      + `통장 ${s.money.toLocaleString()}원 · 맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회<br>(95%의 사람이 여기서 끝나요)`;
+      + `통장 ${s.money.toLocaleString()}원 · 맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회<br>"내일부터" 선언 ${s.tomorrow}회 · 냉장고 습격 ${s.raids}회<br>(80%의 사람이 여기서 끝나요)` + badges;
   }
+  add('📤 결과 공유', '단톡방에 박제', shareCard, 'food');
   add('🔄 다시 도전', '', () => location.reload(), 'etc');
 }
 Stage.init($('stage')).then(render);
