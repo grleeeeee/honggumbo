@@ -196,7 +196,7 @@ function chat([who, text]) {
   c.innerHTML = `<i>${AV[who] || who[0]}</i><span><b>${who}</b>${text}</span>`;
   c.classList.remove('new'); void c.offsetWidth; c.classList.add('new');
 }
-const AV = { 치킨창민: '🍗', 소주래인: '🍶', 누들석민: '🍜', 양주서영: '🥃', 갈비겨레: '🍖', 관장님: '🥊', 지코치님: '🏋️' };
+const AV = { 치킨창민: '🍗', 소주래인: '🍶', 누들석민: '🍜', 양주서영: '🥃', 갈비겨레: '🙄', 관장님: '🥊', 지코치님: '🏋️' };
 const SND = { eat: 'chomp', drink: 'gulp', club: 'beat', dance: 'beat', box: 'punch', conv: 'beep', pc: 'type', selfie: 'shutter', raid: 'chomp', run: 'step', hike: 'step', sad: 'growl', book: 'snore', rest: 'snore' };
 function after() {
   Sfx.play(SND[s.anim]);
