@@ -1,7 +1,7 @@
 // 무대: Phaser 3 로 홍금보(사진 얼굴 + 그림 몸통)와 활동 장면을 그린다.
 // 좌표는 360x280 기준, 레티나 대응으로 캔버스는 2배로 그리고 root 를 2배 확대한다.
 const Stage = (() => {
-  const W = 360, H = 280, GROUND = 252, SKIN = 0xf0bf98;
+  const W = 360, H = 280, GROUND = 252;
   let game, sc, root, key = '';
 
   const T = (x, y, str, size = 28, style = {}) =>
@@ -12,60 +12,52 @@ const Stage = (() => {
   const floaty = (obj, delay = 0) =>
     sc.tweens.add({ targets: obj, y: obj.y - 40, alpha: 0, duration: 1500, repeat: -1, delay });
 
-  // ── 몸 부위는 SVG 일러스트로 그려서 텍스처로 굽는다 (체중 단계별 캐시) ──
-  const OUT = '#3b2a20';
-  const DEFS = `<defs>
-    <linearGradient id="t" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cbe56a"/><stop offset=".5" stop-color="#a8c83c"/><stop offset="1" stop-color="#7e9d24"/></linearGradient>
-    <radialGradient id="sh" cx=".32" cy=".28" r=".85"><stop offset=".5" stop-color="#1e2a05" stop-opacity="0"/><stop offset="1" stop-color="#1e2a05" stop-opacity=".38"/></radialGradient>
-    <linearGradient id="sk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbd6b6"/><stop offset="1" stop-color="#e2a47c"/></linearGradient>
-    <linearGradient id="pa" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#46507a"/><stop offset="1" stop-color="#242a44"/></linearGradient>
-  </defs>`;
-  const svg = (w, h, body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w * 2}" height="${h * 2}" viewBox="0 0 ${w} ${h}">${DEFS}${body}</svg>`;
-  const ln = `stroke="${OUT}" stroke-width="3" stroke-linejoin="round"`;
+  // ── 몸: 굵은 외곽선 + 단색 플랫 2등신 (몸통·다리 한 덩어리, 팔은 몸 뒤에 붙은 뭉툭한 덩어리) ──
+  const OUT = '#3b1f12', TEE = '#8dc63f', TEE_D = '#76ad2c', SKIN = '#ffd3b0', PANTS = '#46508a';
+  const svg = (w, h, body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w * 2}" height="${h * 2}" viewBox="0 0 ${w} ${h}">${body}</svg>`;
+  const LW = 4.5; // 외곽선 두께
+  const ln = (w = LW) => `stroke="${OUT}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
 
   const dims = f => {
-    const d = { f, bw: 50 + f * 110, bh: 80 + f * 24, legW: 15 + f * 14, legH: 40, armW: 12 + f * 10 };
-    d.hip = -d.legH + 2; d.top = d.hip - d.bh + 6; d.sy = d.top + 12; d.sx = d.bw / 2 - 7 + f * 4;
+    const d = { f, bw: 62 + f * 84, bh: 74 + f * 12, armW: 19 + f * 8, armL: 28 };
+    d.legW = 0; d.legH = 0; d.hip = 0; d.top = -d.bh; d.sy = d.top + 14; d.sx = d.bw * 0.36 + f * 4;
     return d;
   };
 
   function torsoSvg({ f, bw: w, bh: h }) {
-    const b = (0.06 + f * 0.16) * w, W2 = w + 2 * b + 24, H2 = h + 30 + f * 10, cx = W2 / 2, t0 = 8, hb = t0 + h;
-    const d = `M${cx - 12},${t0} Q${cx},${t0 + 12} ${cx + 12},${t0} L${cx + w * 0.4},${t0 + 2} Q${cx + w / 2},${t0 + 4} ${cx + w / 2},${t0 + h * 0.28}
-      C${cx + w / 2 + b},${t0 + h * 0.45} ${cx + w / 2 + b},${t0 + h * 1.0} ${cx + w * 0.3},${hb} Q${cx},${hb + 8} ${cx - w * 0.3},${hb}
-      C${cx - w / 2 - b},${t0 + h * 1.0} ${cx - w / 2 - b},${t0 + h * 0.45} ${cx - w / 2},${t0 + h * 0.28} Q${cx - w / 2},${t0 + 4} ${cx - w * 0.4},${t0 + 2} Z`;
-    const belly = f > 0.55 ? `<ellipse cx="${cx}" cy="${hb + 1}" rx="${w * 0.33}" ry="${6 + f * 8}" fill="url(#sk)" ${ln}/>
-      <ellipse cx="${cx}" cy="${hb + 4 + f * 3}" rx="1.6" ry="2.6" fill="#a8684a"/>` : '';
-    const px = cx + w * 0.1, py = t0 + h * 0.42, pr = 4 + f * 3;
-    const petals = [0, 1, 2, 3, 4].map(i => `<circle cx="${px + Math.cos(i * 1.257) * pr}" cy="${py + Math.sin(i * 1.257) * pr}" r="${pr * 0.75}" fill="#7a4a2a" opacity=".85"/>`).join('');
-    const crease = f > 0.3 ? `<path d="M${cx - w * 0.26},${t0 + h * 0.66} Q${cx},${t0 + h * 0.75} ${cx + w * 0.26},${t0 + h * 0.66}" stroke="#6f8c1e" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"/>` : '';
-    return { W: W2, H: H2, ox: cx, oy: hb, s: svg(W2, H2, `${belly}
-      <path d="${d}" fill="url(#t)" ${ln}/><path d="${d}" fill="url(#sh)"/>
-      <path d="M${cx - 13},${t0 + 1} Q${cx},${t0 + 15} ${cx + 13},${t0 + 1}" fill="none" stroke="#6f8c1e" stroke-width="4" stroke-linecap="round"/>
-      <ellipse cx="${cx - w * 0.2}" cy="${t0 + h * 0.2}" rx="${w * 0.12}" ry="${h * 0.07}" fill="#fff" opacity=".3"/>
-      ${crease}${petals}<circle cx="${px}" cy="${py}" r="${pr * 0.5}" fill="#e0a85e"/>`) };
+    const P = 6, W2 = w + 2 * P, H2 = h + 2 * P, cx = W2 / 2, y0 = P, yb = y0 + h;
+    const legTop = y0 + h * 0.64, hem = legTop + 2, side = w * (0.48 + f * 0.04);
+    const sil = `M${cx - w * 0.26},${y0} Q${cx},${y0 - 3} ${cx + w * 0.26},${y0}
+      C${cx + side},${y0 + h * 0.08} ${cx + side + f * 6},${y0 + h * 0.5} ${cx + w * 0.44},${legTop}
+      L${cx + w * 0.42},${yb - 7} Q${cx + w * 0.42},${yb} ${cx + w * 0.34},${yb} L${cx + 7},${yb} Q${cx},${yb} ${cx},${yb - 4}
+      Q${cx},${yb} ${cx - 7},${yb} L${cx - w * 0.34},${yb} Q${cx - w * 0.42},${yb} ${cx - w * 0.42},${yb - 7}
+      L${cx - w * 0.44},${legTop} C${cx - side - f * 6},${y0 + h * 0.5} ${cx - side},${y0 + h * 0.08} ${cx - w * 0.26},${y0} Z`;
+    const belly = f > 0.5 ? `<ellipse cx="${cx}" cy="${hem + 1}" rx="${w * 0.36}" ry="${4 + f * 5}" fill="${SKIN}" ${ln(3)}/>
+      <ellipse cx="${cx}" cy="${hem + 3 + f * 2}" rx="1.6" ry="2.4" fill="${OUT}"/>` : '';
+    const px = cx + w * 0.14, py = y0 + h * 0.36, pr = 3.5 + f * 2.5;
+    const petals = [0, 1, 2, 3, 4].map(i => `<circle cx="${px + Math.cos(i * 1.257) * pr}" cy="${py + Math.sin(i * 1.257) * pr}" r="${pr * 0.72}" fill="#8a5a36"/>`).join('');
+    return { W: W2, H: H2, ox: cx, oy: yb, s: svg(W2, H2, `
+      <clipPath id="c"><path d="${sil}"/></clipPath>
+      <g clip-path="url(#c)">
+        <rect width="${W2}" height="${H2}" fill="${PANTS}"/>
+        <path d="M0,0 H${W2} V${hem} Q${cx},${hem + 5} 0,${hem} Z" fill="${TEE}"/>
+        <path d="M${cx + side * 0.55},${y0 + h * 0.15} Q${cx + side},${y0 + h * 0.45} ${cx + side * 0.7},${hem}" stroke="${TEE_D}" stroke-width="7" fill="none" opacity=".7"/>
+        ${belly}${petals}<circle cx="${px}" cy="${py}" r="${pr * 0.45}" fill="#ffd54f"/>
+      </g>
+      <path d="M${cx - w * 0.44},${hem} Q${cx},${hem + 5} ${cx + w * 0.44},${hem}" fill="none" ${ln(3)}/>
+      <path d="M${cx},${hem + 6} V${yb - 5}" ${ln(3.5)}/>
+      <path d="${sil}" fill="none" ${ln()}/>`) };
   }
 
-  function armSvg({ armW: a }) {
-    const W2 = a + 30, H2 = 76, x = W2 / 2, y = 8;
-    return { W: W2, H: H2, ox: x, oy: y, s: svg(W2, H2, `
-      <rect x="${x - a / 2}" y="${y + 8}" width="${a}" height="${42}" rx="${a / 2}" fill="url(#sk)" ${ln}/>
-      <ellipse cx="${x + a / 2 + 1}" cy="${y + 46}" rx="3.6" ry="5.5" fill="#f2c19c" ${ln.replace('3', '2.2')}/>
-      <circle cx="${x}" cy="${y + 50}" r="${a / 2 + 3.5}" fill="url(#sk)" ${ln}/>
-      <path d="M${x - 3},${y + 53} q2,2 4,0 M${x + 1},${y + 55} q2,2 4,0" stroke="#c98a63" stroke-width="1.4" fill="none"/>
-      <path d="M${x - a / 2 - 5},${y + 14} L${x - a / 2 - 2},${y - 4} Q${x},${y - 9} ${x + a / 2 + 2},${y - 4} L${x + a / 2 + 5},${y + 14} Q${x},${y + 19} ${x - a / 2 - 5},${y + 14} Z" fill="url(#t)" ${ln}/>
-      <path d="M${x - a / 2 - 4},${y + 11} Q${x},${y + 16} ${x + a / 2 + 4},${y + 11}" stroke="#6f8c1e" stroke-width="2" fill="none"/>`) };
-  }
-
-  function legSvg({ legW: l, legH: h }) {
-    const W2 = l + 24, H2 = h + 14, x = W2 / 2, y = 4, sy = y + h - 13;
-    return { W: W2, H: H2, ox: x, oy: y, s: svg(W2, H2, `
-      <rect x="${x - l / 2}" y="${y}" width="${l}" height="${h - 8}" rx="6" fill="url(#pa)" ${ln}/>
-      <path d="M${x - l / 2 + 3},${y + h - 13} h${l - 6}" stroke="#1b2036" stroke-width="2"/>
-      <path d="M${x - l / 2 - 3},${sy + 13} L${x - l / 2 - 3},${sy + 5} Q${x - l / 2 - 3},${sy} ${x - l / 2 + 3},${sy} L${x + l / 2 + 1},${sy} Q${x + l / 2 + 9},${sy + 3} ${x + l / 2 + 9},${sy + 13} Z" fill="#fafafa" ${ln}/>
-      <rect x="${x - l / 2 - 3}" y="${sy + 10}" width="${l + 12}" height="3.5" fill="#cfcfcf"/>
-      <path d="M${x - l / 2 + 2},${sy + 7} Q${x},${sy + 3} ${x + l / 2 + 4},${sy + 8}" stroke="#a8c83c" stroke-width="2.4" fill="none"/>
-      <path d="M${x - 2},${sy + 1} v3 M${x + 2},${sy + 1} v3" stroke="#999" stroke-width="1.3"/>`) };
+  // 뭉툭한 팔: 위는 초록 소매, 끝은 살색 손. 몸 뒤에 그려서 쉴 땐 한 덩어리처럼 보임
+  function armSvg({ armW: a, armL: l }) {
+    const P = 5, W2 = a + 2 * P, H2 = l + a / 2 + 2 * P, x = W2 / 2, y = P;
+    const cap = `M${x - a / 2},${y + a / 2} A${a / 2},${a / 2} 0 0 1 ${x + a / 2},${y + a / 2} V${y + l} A${a / 2},${a / 2} 0 0 1 ${x - a / 2},${y + l} Z`;
+    return { W: W2, H: H2, ox: x, oy: y + a / 2, s: svg(W2, H2, `
+      <clipPath id="a"><path d="${cap}"/></clipPath>
+      <g clip-path="url(#a)"><rect width="${W2}" height="${H2}" fill="${SKIN}"/><rect width="${W2}" height="${y + l * 0.55}" fill="${TEE}"/></g>
+      <path d="M${x - a / 2},${y + l * 0.55} H${x + a / 2}" ${ln(3)}/>
+      <path d="${cap}" fill="none" ${ln()}/>`) };
   }
 
   const made = {};
@@ -73,41 +65,39 @@ const Stage = (() => {
     if (sc.textures.exists(key)) return done();
     const img = new Image();
     img.onload = () => { if (!sc.textures.exists(key)) sc.textures.addImage(key, img); done(); };
+    img.onerror = () => done();
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(part.s);
   });
   async function parts(f) {
     const k = Math.round(f * 20);
     if (made[k]) return made[k];
     const d = dims(k / 20);
-    d.k = k; d.torso = torsoSvg(d); d.arm = armSvg(d); d.leg = legSvg(d);
-    await Promise.all([bake('torso' + k, d.torso), bake('arm' + k, d.arm), bake('leg' + k, d.leg)]);
+    d.k = k; d.torso = torsoSvg(d); d.arm = armSvg(d);
+    await Promise.all([bake('torso' + k, d.torso), bake('arm' + k, d.arm)]);
     return made[k] = d;
   }
   const part = (key, pt, flip) => sc.add.image(0, 0, key).setScale(0.5).setOrigin(pt.ox / pt.W, pt.oy / pt.H).setFlipX(!!flip);
 
-  // 체중에 따라 퉁퉁해지는 몸 (d = parts() 결과)
+  // p.body 는 발밑 기준이라 젤리처럼 눌렀다 폈다 가능. 다리는 몸통에 포함 (legL/legR 는 걷기 연출용 빈 그룹)
   function hong(d, pig, itemR, itemL) {
-    const { f, bw, legW, hip, top, sy, sx, k } = d;
+    const { f, bw, top, sy, sx, k, armL } = d;
     const p = { root: sc.add.container(180, GROUND), body: sc.add.container(0, 0), lean: sc.add.container(0, 0) };
-    p.root.add([sc.add.ellipse(0, 2, bw + 26, 10, 0x000000, 0.16), p.body]); p.body.add(p.lean);
+    p.root.add([sc.add.ellipse(0, 2, bw + 24, 12, 0x6b4a20, 0.2), p.body]); p.body.add(p.lean);
+    p.legL = sc.add.container(0, 0); p.legR = sc.add.container(0, 0);
+    p.torso = part('torso' + k, d.torso);
 
-    const leg = (x, flip) => { const c = sc.add.container(x, hip); c.add(part('leg' + k, d.leg, flip)); return c; };
-    p.legL = leg(-legW / 2 - 1 - f * 6, true); p.legR = leg(legW / 2 + 1 + f * 6);
-
-    p.torso = part('torso' + k, d.torso).setPosition(0, hip);
-
-    p.hw = (pig ? 108 : 86) * (1 + f * 0.3); p.hh = 98 * (1 + f * 0.08);
-    p.head = sc.add.container(0, top + 8);
+    p.hw = (pig ? 124 : 100) * (1 + f * 0.2); p.hh = 114 * (1 + f * 0.05);
+    p.head = sc.add.container(0, top + 18);
     p.head.add(sc.add.image(0, 0, pig ? 'pig' : 'face').setOrigin(0.5, 1).setDisplaySize(p.hw, p.hh));
 
     const arm = (x, item, flip) => {
       const c = sc.add.container(x, sy); c.add(part('arm' + k, d.arm, flip));
-      if (item) { item.setPosition(0, 56); c.add(item); }
+      if (item) { item.setPosition(0, armL + 2); c.add(item); }
       return c;
     };
     p.armL = arm(-sx, itemL, true); p.armR = arm(sx, itemR);
-    p.armL.angle = 14; p.armR.angle = -14;
-    p.lean.add([p.legL, p.legR, p.torso, p.head, p.armL, p.armR]);
+    p.armL.angle = 12; p.armR.angle = -12;
+    p.lean.add([p.legL, p.legR, p.torso, p.armL, p.armR, p.head]);
     return p;
   }
 
@@ -122,20 +112,19 @@ const Stage = (() => {
     loop(p.body, { y: -5 }, 250);
   };
   const walk = (p, ms) => {
-    p.legL.angle = 28; loop(p.legL, { angle: -28 }, ms);
-    p.legR.angle = -28; loop(p.legR, { angle: 28 }, ms);
-    loop(p.body, { y: -8 }, ms);
+    p.body.angle = -5; loop(p.body, { angle: 5 }, ms);
+    loop(p.lean, { y: -8 }, ms / 2);
   };
 
   // 손에 드는 소품 (문자열은 이모지, {p}는 행동 소품)
   const ITEMS = {
     box: ['🥊', '🥊'], club: ['{p}'], selfie: ['📱'], eat: ['🥢'], drink: ['{p}'], conv: ['🍙'], win: ['🏆'],
-    hike: [() => { const g = G(); g.lineStyle(4, 0x7a4a1a).lineBetween(0, -6, 0, 70); return g; }],
-    book: [() => { const g = G(); g.fillStyle(0x22aa66).fillRect(-26, -34, 52, 36); g.fillStyle(0xffffff).fillRect(-1, -34, 2, 36); return g; }],
+    hike: [() => { const g = G(); g.lineStyle(4, 0x7a4a1a).lineBetween(0, -10, 0, 30); return g; }],
+    book: [() => { const g = G(); g.fillStyle(0x4db6ac).fillRoundedRect(-24, -26, 48, 32, 4); g.fillStyle(0xffffff).fillRect(-1, -26, 2, 32); return g; }],
   };
 
   const SCENES = {
-    idle(p) { loop(p.body, { y: -3 }, 1100); loop(p.torso, { scaleX: 0.51, scaleY: 0.508 }, 1100); loop(p.head, { angle: 2 }, 1600); },
+    idle(p) { loop(p.body, { scaleX: 1.04, scaleY: 0.96 }, 900); loop(p.head, { angle: 3, y: p.head.y + 2 }, 1300); },
     box(p, bg) {
       const g = G(); g.lineStyle(3, 0xcc3333).lineBetween(0, 150, 360, 150).lineBetween(0, 185, 360, 185); bg.add(g);
       const bag = sc.add.container(305, 0), b = G();
@@ -272,6 +261,7 @@ const Stage = (() => {
     const p = hong(d, s.w >= 90, items[0], items[1]);
     root.add([sky, bg, floor, p.root, fg]);
     (SCENES[s.anim] || SCENES.idle)(p, bg, fg, s);
+    p.lean.setScale(1.18, 0.82); sc.tweens.add({ targets: p.lean, scaleX: 1, scaleY: 1, duration: 600, ease: 'Elastic.Out' });
     if (s.w >= 90) { // 90kg 넘으면 쿵쿵: 화면 흔들림 + 바닥 금
       const c = G(); c.lineStyle(2, 0x6b4f2a);
       [[150, 254, 130, 270, 112, 276], [210, 254, 232, 268, 250, 278], [180, 256, 178, 278, 160, 280]].forEach(([a, b, c1, d, e, f2]) =>

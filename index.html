@@ -9,13 +9,13 @@
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 <style>
   *{box-sizing:border-box}
-  body{font-family:'Jua',system-ui,sans-serif;max-width:430px;margin:0 auto;padding:10px 12px 28px;background:linear-gradient(#ffe9c7,#ffd6e0);min-height:100vh;color:#3b2a20;-webkit-tap-highlight-color:transparent}
-  header{display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:18px;padding:8px 14px;box-shadow:0 4px 0 #f0b9a0}
+  body{font-family:'Jua',system-ui,sans-serif;max-width:430px;margin:0 auto;padding:0 12px 28px;background:linear-gradient(#ffe9c7,#ffd6e0);min-height:100vh;color:#3b2a20;-webkit-tap-highlight-color:transparent}
+  header{display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:16px;padding:5px 12px;box-shadow:0 3px 0 #f0b9a0}
   header h1{margin:0;font-size:20px;font-weight:400;color:#e85d75}
-  #kg{font-size:34px;line-height:1}
+  #kg{font-size:28px;line-height:1}
   #kg small{font-size:14px;color:#a08070}
-  .chips{display:flex;gap:6px;justify-content:center;margin:8px 0;flex-wrap:wrap}
-  .chip{background:#fff;border-radius:999px;padding:3px 10px;font-size:14px;box-shadow:0 2px 0 #f0b9a0}
+  .chips{display:flex;gap:5px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+  .chip{background:#fff;border-radius:999px;padding:2px 9px;font-size:13px;box-shadow:0 2px 0 #f0b9a0}
 
   #stage{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 5px 0 #d9907a;background:#fff3d6;aspect-ratio:360/300}
   #stage canvas{display:block;width:100%!important;height:auto!important}
@@ -30,39 +30,45 @@
   @keyframes up{from{transform:translateY(0);opacity:1}to{transform:translateY(-60px);opacity:0}}
   #pig{width:100%;display:block}
 
-  .bars{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;margin:10px 2px 4px;font-size:14px}
+  #top{position:sticky;top:0;z-index:10;background:#ffe9c7;margin:0 -12px;padding:8px 12px 6px;box-shadow:0 6px 10px -8px #0003}
+  .bars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 2px 0;font-size:14px}
+  .bars>div{display:flex;align-items:center;gap:4px}.bars .bar{flex:1}
   .bar{height:12px;background:#fff;border-radius:6px;overflow:hidden;box-shadow:inset 0 1px 2px #0002}
   .bar i{display:block;height:100%;border-radius:6px;transition:width .4s}
   #event{font-size:18px;margin:8px 0 2px;text-align:center;color:#c0392b}
   #msg{min-height:44px;background:#fff;border-radius:14px;padding:8px 10px;margin:6px 0 10px;line-height:1.45;font-size:15px;text-align:center}
-  #btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  #btns{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
   #btns.two{grid-template-columns:1fr 1fr}#btns.one{grid-template-columns:1fr}
-  button{font-family:inherit;width:100%;padding:8px 4px 7px;font-size:15px;border:0;border-radius:14px;cursor:pointer;touch-action:manipulation;color:#3b2a20;background:#fff;box-shadow:0 4px 0 var(--c,#f0b9a0);transition:transform .08s}
+  button{font-family:inherit;width:100%;padding:6px 2px 5px;font-size:13.5px;border:0;border-radius:14px;cursor:pointer;touch-action:manipulation;color:#3b2a20;background:#fff;box-shadow:0 4px 0 var(--c,#f0b9a0);transition:transform .08s}
   button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--c,#f0b9a0)}
-  button .e{display:block;font-size:26px;line-height:1.2}
-  button small{display:block;font-size:11px;color:#9a7a6a;margin-top:1px}
+  button .e{display:block;font-size:22px;line-height:1.2}
+  button small{display:block;font-size:9.5px;color:#9a7a6a;margin-top:1px;letter-spacing:-.3px}
+  #btns.two button{font-size:17px;padding:10px 4px}#btns.two button small{font-size:12px}
   #feed{position:absolute;left:8px;bottom:30px;display:flex;flex-direction:column;gap:4px;z-index:6;max-width:72%;pointer-events:none}
   .cmt{background:#fffe;border-radius:14px;padding:3px 10px 3px 3px;font-size:13px;display:flex;align-items:center;gap:6px;box-shadow:0 2px 6px #0002;animation:slide .3s,fade .5s 3.2s forwards}
   .cmt i{width:22px;height:22px;border-radius:50%;background:linear-gradient(45deg,#f9a825,#e91e63,#8e24aa);color:#fff;font-style:normal;display:grid;place-items:center;font-size:11px;flex:none}
   .cmt b{font-weight:400;color:#8e24aa}
   @keyframes slide{from{transform:translateX(-30px);opacity:0}}
   @keyframes fade{to{opacity:0}}
-  /* 이벤트 팝업 */
-  #pop{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:#000a;overflow:hidden}
-  #vig{position:absolute;inset:0;box-shadow:inset 0 0 140px 50px #ff1744;display:none;pointer-events:none}
-  #rays{position:absolute;width:1000px;height:1000px;left:50%;top:50%;margin:-500px 0 0 -500px;border-radius:50%;background:repeating-conic-gradient(#ffd54f38 0 9deg,transparent 9deg 18deg);display:none;pointer-events:none}
-  #tape{position:absolute;top:13%;left:-20%;right:-20%;transform:rotate(-7deg);background:repeating-linear-gradient(45deg,#ffd600 0 18px,#111 18px 36px);padding:7px 0;display:none}
-  #tape span{display:block;white-space:nowrap;background:#111;color:#ffd600;font-size:18px;padding:3px 0;animation:marq 6s linear infinite}
+  /* 무대 안 이벤트 연출 (팝업 대신) */
+  #ov{position:absolute;inset:0;z-index:9;display:none;align-items:center;justify-content:center;overflow:hidden;border-radius:18px;pointer-events:none}
+  #ov.on{display:flex}
+  #ov.alert{animation:flash .35s infinite alternate}
+  @keyframes flash{from{box-shadow:inset 0 0 0 4px #e53935,inset 0 0 40px 10px #ff174455}to{box-shadow:inset 0 0 0 7px #ff8a80,inset 0 0 90px 30px #ff1744aa}}
+  #ov.good::before{content:'';position:absolute;width:760px;height:760px;left:50%;top:50%;margin:-380px 0 0 -380px;background:repeating-conic-gradient(#ffd54f55 0 9deg,transparent 9deg 18deg);animation:spin 8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .tape{position:absolute;bottom:30px;left:-10%;right:-10%;transform:rotate(-4deg);background:repeating-linear-gradient(45deg,#ffd600 0 14px,#111 14px 28px);padding:5px 0;display:none;z-index:2}
+  #ov.alert .tape,.tape.show{display:block}
+  .tape span{display:block;white-space:nowrap;background:#111;color:#ffd600;font-size:15px;padding:2px 0;animation:marq 6s linear infinite}
   @keyframes marq{to{transform:translateX(-50%)}}
-  #pop.alert #vig,#pop.alert #tape,#pop.good #rays{display:block}
-  #card{position:relative;width:min(86vw,360px);background:#fff;border-radius:24px;padding:18px 16px 14px;text-align:center;box-shadow:0 10px 0 #0004;border:4px solid #f0b9a0}
-  #pop.alert #card{border-color:#e53935}#pop.good #card{border-color:#ffb300}
-  #pic{font-size:64px;line-height:1.15}
-  #ptitle{font-size:28px;margin:4px 0;color:#3b2a20}
-  #pop.alert #ptitle{color:#e53935}#pop.good #ptitle{color:#f57f17}
-  #ptext{font-size:16px;line-height:1.5}#ptext b{color:#e53935;font-weight:400}
-  #psay{margin:10px 0 0;background:#fff8e7;border:2px solid #3b2a20;border-radius:14px;padding:6px 10px;font-size:15px}
-  #pbtns{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;margin-top:14px}
+  .ban{position:relative;background:#fffffff2;border:3px solid #3b1f12;border-radius:18px;padding:8px 16px;max-width:86%;text-align:center;box-shadow:0 5px 0 #0003;animation:popin .5s cubic-bezier(.2,1.6,.4,1)}
+  #ov.alert .ban{border-color:#e53935;animation:popin .5s cubic-bezier(.2,1.6,.4,1),shk .35s .5s 2}
+  #ov.good .ban{border-color:#ffb300}
+  @keyframes popin{from{transform:scale(.2) rotate(-8deg);opacity:0}}
+  .ban .ic{font-size:40px;line-height:1.1}.ban .tt{font-size:22px}
+  #ov.alert .tt{color:#e53935}#ov.good .tt{color:#f57f17}
+  .ban .tx{font-size:14px;line-height:1.45}.ban .tx b{color:#e53935;font-weight:400}.ban .tx small{display:block;color:#aaa;font-size:11px;margin-top:2px}
+  #btns.wait{opacity:.45;pointer-events:none}
   #kg.fake{color:#e85d75}#kg.err{font-size:15px;color:#c0392b}
   .shake{animation:shk .4s}
   @keyframes shk{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
@@ -73,24 +79,24 @@
 </style>
 </head>
 <body>
+<div id="top">
 <header><h1>🥋 홍금보 키우기</h1><div style="display:flex;align-items:center"><button id="mute"></button><div id="kg"></div></div></header>
 <div class="chips"><span class="chip">🎯 50kg</span><span class="chip">📅 <span id="day"></span>일차</span><span class="chip">💰 <span id="money"></span>원</span><span class="chip">✏️ <span id="fixes"></span></span></div>
 <div id="stage">
   <div id="bubble"></div>
   <div id="feed"></div>
+  <div id="ov"><div class="tape"><span></span></div><div class="ban"><div class="ic"></div><div class="tt"></div><div class="tx"></div></div></div>
   <div id="hint">✏️ 틀린 맞춤법을 눌러서 고쳐줘</div>
 </div>
-<div class="bars">💪 의지력<div class="bar"><i id="will" style="background:linear-gradient(90deg,#ff8a80,#e53935)"></i></div>
-⚡ 체력<div class="bar"><i id="sta" style="background:linear-gradient(90deg,#80cbc4,#26a69a)"></i></div>
-🍔 배고픔<div class="bar"><i id="hunger" style="background:linear-gradient(90deg,#ffe082,#ff9800)"></i></div></div>
+<div class="bars"><div>💪<div class="bar"><i id="will" style="background:linear-gradient(90deg,#ff8a80,#e53935)"></i></div></div>
+<div>⚡<div class="bar"><i id="sta" style="background:linear-gradient(90deg,#80cbc4,#26a69a)"></i></div></div>
+<div>🍔<div class="bar"><i id="hunger" style="background:linear-gradient(90deg,#ffe082,#ff9800)"></i></div></div></div>
+</div>
 <div id="msg"></div>
 <div id="btns"></div>
-<div id="pop"><div id="vig"></div><div id="rays"></div><div id="tape"><span></span></div>
-  <div id="card"><div id="pic"></div><div id="ptitle"></div><div id="ptext"></div><div id="psay"></div><div id="pbtns"></div></div></div>
 <script src="game.js"></script>
 <script src="stage.js"></script>
 <script src="sfx.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -105,7 +111,7 @@ const fixTypo = e => {
   u.outerHTML = `<span class="typo-done"><s>${u.textContent}</s> <b>${u.dataset.r}</b></span>`;
   s.fixes++; s.will = Math.min(100, s.will + 3); if ($('hint')) $('hint').style.display = 'none'; stats(); Sfx.play('pop');
 };
-$('bubble').onclick = fixTypo; $('psay').onclick = fixTypo;
+$('bubble').onclick = fixTypo;
 
 function stats() {
   $('kg').innerHTML = s.w.toFixed(1) + '<small>kg</small>';
@@ -145,42 +151,33 @@ const POPS = {
   danger: ['alert', '🐷', '돼지 임계점 돌파', '90kg 돌파.<br>체중계가 비명을 지르기 시작했다.', 'DANGER'],
 };
 
-// 팝업: 순서대로 하나씩, 버튼 값으로 resolve (GSAP 애니메이션 + confetti)
-let popChain = Promise.resolve();
-const popup = o => (popChain = popChain.then(() => openPop(o)));
-function openPop({ kind, icon, title, text, say = '', tape = 'WARNING', btns = [['확인', true]] }) {
+// 무대 안 이벤트 연출: 빨간 깜빡임 + 경고 테이프 + 배너 (좋은 일은 금빛 광선 + 폭죽)
+// 기본은 2.3초 뒤 자동으로 넘어가고 무대를 탭하면 바로 넘어감. hold 면 직접 지울 때까지 유지
+function stageAlert({ kind, icon, title, text, tape = 'WARNING', hold = false }) {
+  const ov = $('ov'); if (!ov) return Promise.resolve();
+  ov.className = 'on ' + kind;
+  ov.querySelector('.ic').textContent = icon; ov.querySelector('.tt').textContent = title;
+  ov.querySelector('.tx').innerHTML = text + (hold ? '' : '<small>탭하면 넘어가요</small>');
+  ov.querySelector('.tape span').textContent = `⚠ ${tape} `.repeat(16);
+  const ban = ov.querySelector('.ban'); ban.style.animation = 'none'; void ban.offsetWidth; ban.style.animation = '';
+  if (kind === 'alert') { Sfx.play('siren'); navigator.vibrate?.([120, 60, 120]); }
+  else if (kind === 'good') {
+    Sfx.play('fanfare');
+    const r = $('stage').getBoundingClientRect();
+    window.confetti?.({ particleCount: 120, spread: 80, origin: { y: (r.top + r.height / 2) / innerHeight }, zIndex: 60 });
+  } else Sfx.play('pop');
+  if (hold) { ov.style.pointerEvents = 'none'; return Promise.resolve(); }
+  ov.style.pointerEvents = 'auto';
   return new Promise(done => {
-    const pop = $('pop'); pop.className = kind; pop.style.display = 'flex';
-    $('pic').textContent = icon; $('ptitle').textContent = title; $('ptext').innerHTML = text;
-    $('psay').innerHTML = typoHtml(say); $('psay').style.display = say ? '' : 'none';
-    $('tape').firstElementChild.textContent = `⚠ ${tape} `.repeat(16);
-    $('pbtns').innerHTML = '';
-    const close = v => {
-      gsap.killTweensOf(['#card', '#vig', '#rays', '#pic']);
-      gsap.to('#card', { scale: 0.6, opacity: 0, duration: 0.18, onComplete: () => { pop.style.display = 'none'; done(v); } });
-    };
-    btns.forEach(([label, v, sub, cls]) => {
-      const b = document.createElement('button'); b.className = cls || 'etc';
-      b.innerHTML = label + (sub ? `<small>${sub}</small>` : ''); b.onclick = () => close(v); $('pbtns').append(b);
-    });
-    gsap.fromTo('#card', { scale: 0.2, rotation: -10, opacity: 0, x: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.7, ease: 'elastic.out(1,0.55)' });
-    gsap.fromTo('#pic', { scale: 0 }, { scale: 1, duration: 0.5, delay: 0.15, ease: 'back.out(3)' });
-    if (kind === 'alert') {
-      Sfx.play('siren'); navigator.vibrate?.([120, 60, 120]);
-      gsap.fromTo('#vig', { opacity: 0.25 }, { opacity: 1, duration: 0.3, repeat: -1, yoyo: true });
-      gsap.fromTo('#card', { x: -10 }, { x: 10, duration: 0.05, repeat: 7, yoyo: true, delay: 0.1, onComplete: () => gsap.set('#card', { x: 0 }) });
-    } else if (kind === 'good') {
-      Sfx.play('fanfare');
-      gsap.fromTo('#rays', { rotation: 0 }, { rotation: 360, duration: 8, repeat: -1, ease: 'none' });
-      confetti({ particleCount: 140, spread: 90, origin: { y: 0.55 }, zIndex: 60 });
-    } else Sfx.play('pop');
+    const fin = () => { clearTimeout(timer); ov.onclick = null; ov.className = ''; ov.style.pointerEvents = 'none'; done(); };
+    const timer = setTimeout(fin, 2300); ov.onclick = fin;
   });
 }
+const clearAlert = () => { if ($('ov')) $('ov').className = ''; };
 
 async function events() {
-  for (const e of s.events) { const [kind, icon, title, text, tape] = POPS[e]; await popup({ kind, icon, title, text, tape }); }
-  s.events = [];
-  for (const b of newBadges.splice(0)) await popup({ kind: 'good', icon: '🏅', title: '업적 달성', text: `<b>${b}</b>` });
+  for (const e of s.events.splice(0)) { const [kind, icon, title, text, tape] = POPS[e]; await stageAlert({ kind, icon, title, text, tape }); }
+  for (const b of newBadges.splice(0)) await stageAlert({ kind: 'good', icon: '🏅', title: '업적 달성', text: `<b>${b}</b>` });
 }
 
 // 행동 직후 연출: 효과음, 친구 댓글, 업적, 체중계 장난
@@ -238,35 +235,48 @@ function delta(d) {
 }
 const show = w => { render(); delta(s.w - w); after(); };
 
-// 하루 진행: 행동 → 이벤트 팝업 → (저녁 유혹 팝업 or 그냥 밤) → 밤 이벤트 팝업
+// 하루 진행: 행동 → 무대 이벤트 → (저녁 유혹 선택 or 그냥 밤) → 밤 이벤트
 async function day(id) {
   if (busy) return; busy = true;
-  let w = s.w; act(s, id); show(w);
-  await events();
-  if (!s.over) {
-    await sleep(900); // 행동 장면 감상 시간
-    if (tempted(s)) {
-      const [sit, line] = s.tempt, cost = resistCost(s);
-      const eat = await popup({ kind: 'alert', tape: '유혹 경보', icon: [...sit][0], title: '유혹 경보!', text: sit.slice(sit.indexOf(' ') + 1), say: line,
-        btns: [['😤 참는다', false, `의지력 -${cost}${s.hunger >= 70 ? ' (배고픔!)' : ''}`, 'sport'], ['😋 먹는다', true, '+체중', 'food']] });
-      w = s.w; temptation(s, eat);
-    } else { s.events = []; w = s.w; skipTemptation(s); }
-    show(w); await events();
-  }
-  busy = false;
+  $('btns').classList.add('wait');
+  try {
+    let w = s.w; act(s, id); show(w); $('btns').classList.add('wait');
+    await sleep(800); // 행동 장면 감상 시간
+    await events();
+    if (!s.over) {
+      if (tempted(s)) { const eat = await temptChoice(); w = s.w; temptation(s, eat); }
+      else { s.events = []; w = s.w; skipTemptation(s); }
+      show(w); $('btns').classList.add('wait');
+      await sleep(500); await events();
+    }
+  } finally { busy = false; render(); }
+}
+
+const btn = (label, sub, fn, cls = '') => {
+  const e = document.createElement('button'); e.className = cls;
+  const [emoji, ...rest] = label.split(' ');
+  e.innerHTML = `<span class="e">${emoji}</span>${rest.join(' ')}` + (sub ? `<small>${sub}</small>` : '');
+  e.onclick = fn; return e;
+};
+
+// 저녁 유혹: 무대에 경보를 띄우고, 아래 버튼 자리를 참는다/먹는다로 바꿔서 선택받음
+function temptChoice() {
+  const [sit, line] = s.tempt, cost = resistCost(s);
+  stageAlert({ kind: 'alert', tape: '유혹 경보', icon: [...sit][0], title: '유혹 경보!', text: sit.slice(sit.indexOf(' ') + 1), hold: true });
+  $('bubble').innerHTML = typoHtml(line);
+  return new Promise(done => {
+    const b = $('btns'); b.innerHTML = ''; b.className = 'two';
+    b.append(btn('😤 참는다', `의지력 -${cost}${s.hunger >= 70 ? ' (배고픔!)' : ''}`, () => { clearAlert(); done(false); }, 'sport'),
+      btn('😋 먹는다', '+체중', () => { clearAlert(); done(true); }, 'food'));
+  });
 }
 
 function render() {
   stats();
-  $('bubble').innerHTML = typoHtml(s.say);
+  if ($('bubble')) $('bubble').innerHTML = typoHtml(s.say); // 돼지엔딩 후엔 무대가 사진으로 바뀜
   $('msg').innerHTML = s.log.join('<br>') || '오늘은 뭘 할까?';
   const b = $('btns'); b.innerHTML = ''; b.className = '';
-  const add = (label, sub, fn, cls = '') => {
-    const e = document.createElement('button'); e.className = cls;
-    const [emoji, ...rest] = label.split(' ');
-    e.innerHTML = `<span class="e">${emoji}</span>${rest.join(' ')}` + (sub ? `<small>${sub}</small>` : '');
-    e.onclick = fn; b.append(e);
-  };
+  const add = (...a) => b.append(btn(...a));
   if (s.over) return end(add);
   Stage.show(s);
   for (const id in ACTIONS) add(ACTIONS[id][0], ACTIONS[id][1], () => day(id), KIND[id] || 'etc');
@@ -279,14 +289,15 @@ function end(add) {
     s.anim = 'win'; Stage.show(s);
     $('bubble').innerHTML = typoHtml('해낸 나 너무 {뿌득해|뿌듯해}💗 이제 치킨 먹어도 {돼지|되지}?');
     $('msg').innerHTML = `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 상위 20%의 의지력!<br>맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회` + badges;
-    popup({ kind: 'good', icon: '🏆', title: '다이어트 성공!!', text: `${s.day}일 만에 50kg 달성.<br>홍금보 인생 최초의 사건.` });
+    stageAlert({ kind: 'good', icon: '🏆', title: '다이어트 성공!!', text: `${s.day}일 만에 50kg 달성.<br>홍금보 인생 최초의 사건.` });
   } else {
     Stage.destroy();
-    $('stage').innerHTML = '<img id="pig" src="img/pig.jpg" alt="돼지엔딩">';
+    $('stage').innerHTML = '<img id="pig" src="img/pig.jpg" alt="돼지엔딩"><div class="tape show"><span>' + '⚠ GAME OVER '.repeat(16) + '</span></div>';
     $('stage').style.aspectRatio = 'auto';
+    $('top').style.position = 'static'; // 엔딩 사진은 커서 고정 해제
     $('msg').innerHTML = `<b>🐷 돼지엔딩</b><br>${s.day}일 만에 ${s.w.toFixed(0)}kg. 홍금보는 이제 쿵푸가 아니라 구르기를 한다.<br>`
       + `통장 ${s.money.toLocaleString()}원 · 맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회<br>"내일부터" 선언 ${s.tomorrow}회 · 냉장고 습격 ${s.raids}회<br>(80%의 사람이 여기서 끝나요)` + badges;
-    popup({ kind: 'alert', tape: 'GAME OVER', icon: '🐷', title: '100kg 달성', text: `${s.day}일 만에 돼지가 되었습니다.<br>"네? 저요?"` }).then(() => Sfx.play('fail'));
+    Sfx.play('fail'); setTimeout(() => Sfx.play('oink'), 1500);
   }
   add('📤 결과 공유', '단톡방에 박제', shareCard, 'food');
   add('🔄 다시 도전', '', () => location.reload(), 'etc');
