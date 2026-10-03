@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>홍금보 키우기</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:420px;margin:0 auto;padding:16px;background:#fff8e7;color:#222;text-align:center}
+  h1{margin:8px 0}
+  #face{height:150px;display:flex;align-items:center;justify-content:center}
+  #face>*{transition:transform .3s}#photo{max-height:150px;max-width:100%;border-radius:12px}
+  #btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #kg{font-size:44px;font-weight:700}
+  .bar{height:12px;background:#ddd;border-radius:6px;margin:4px 0 10px;overflow:hidden}
+  .bar i{display:block;height:100%;transition:width .3s}
+  #msg{min-height:72px;background:#fff;border-radius:8px;padding:10px;margin:12px 0;line-height:1.5}
+  button{display:block;width:100%;padding:12px 6px;margin:0;touch-action:manipulation;font-size:16px;border:0;border-radius:8px;background:#ffb703;cursor:pointer}
+  button small{display:block;font-size:12px;color:#555}
+  button:active{background:#fb8500}
+</style>
+</head>
+<body>
+<h1>🥋 홍금보 키우기</h1>
+<div id="face"><img id="photo" src="img/1.jpg" alt="홍금보"></div>
+<div id="kg"></div>
+<div>목표 50kg · <span id="day"></span>일차</div>
+<div style="text-align:left;margin-top:10px">의지력<div class="bar"><i id="will" style="background:#e63946"></i></div>
+체력<div class="bar"><i id="sta" style="background:#2a9d8f"></i></div></div>
+<div>💰 통장 <span id="money"></span>원</div>
+<div id="msg"></div>
+<div id="btns"></div>
+<script src="game.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let s = newGame(), phase = 'act'; // act → tempt → act ...
+const best = () => localStorage.getItem('hkb-best');
+
+function render() {
+  $('kg').textContent = s.w.toFixed(1) + 'kg';
+  $('day').textContent = s.day;
+  $('will').style.width = s.will + '%';
+  $('sta').style.width = s.sta + '%';
+  $('photo').src = 'img/' + (s.over === 'pig' || s.w >= 100 ? 4 : s.w >= 80 ? 3 : s.w >= 65 ? 2 : 1) + '.jpg';
+  $('msg').innerHTML = s.log.join('<br>') || '오늘은 뭘 할까?';
+  const b = $('btns'); b.innerHTML = ''; b.style.display = '';
+  $('money').textContent = s.money.toLocaleString();
+  const add = (label, sub, fn) => { const e = document.createElement('button'); e.innerHTML = label + (sub ? `<small>${sub}</small>` : ''); e.onclick = fn; b.append(e); };
+  if (s.over) return end(add);
+  if (phase === 'act') for (const id in ACTIONS) add(ACTIONS[id][0], ACTIONS[id][1], () => { act(s, id); phase = tempted(s) && !s.over ? 'tempt' : 'act'; if (phase === 'act' && !s.over) skipTemptation(s); render(); });
+  else {
+    $('msg').innerHTML += '<br><b>🍗 저녁이다. 친구가 치킨을 시켰다!</b>';
+    b.style.display = 'block';
+    add('😤 참는다', '의지력 -20 (모자라면 못 참음)', () => { temptation(s, false); phase = 'act'; render(); });
+    add('😋 먹는다', '+체중', () => { temptation(s, true); phase = 'act'; render(); });
+  }
+}
+
+function end(add) {
+  const win = s.over === 'win';
+  
+  $('msg').innerHTML = win ? `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 당신은 상위 5%의 의지력!`
+    : `<b>🐷 돼지엔딩</b><br>${s.day}일 만에 ${s.w.toFixed(0)}kg. 홍금보는 이제 쿵푸가 아니라 구르기를 한다.<br>통장 잔고 ${s.money.toLocaleString()}원 (전부 불닭값으로 사라짐)<br>(95%의 사람이 여기서 끝나요)`;
+  add('🔄 다시 도전', '', () => { s = newGame(); phase = 'act'; render(); });
+}
+render();
+</script>
+</body>
+</html>
