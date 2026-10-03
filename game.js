@@ -89,7 +89,7 @@ const TEMPTATIONS = [
 ];
 
 const newGame = () => ({ day: 1, w: START, will: 70, sta: 100, hunger: 10, money: 0, loss: 0, binge: false, books: 0, fixes: 0,
-  selfies: 0, raids: 0, tomorrow: 0, cnt: {}, streak: { id: '', n: 0 }, last: '', comment: null, over: null, log: ['🎯 목표 50kg! 홍금보의 다이어트가 시작됐다.'], say: '오늘부터 다이어트 {시작함니다|시작합니다} 💗 (진짜임)', anim: 'idle', prop: '' });
+  selfies: 0, raids: 0, events: [], danger: false, tomorrow: 0, cnt: {}, streak: { id: '', n: 0 }, last: '', comment: null, over: null, log: ['🎯 목표 50kg! 홍금보의 다이어트가 시작됐다.'], say: '오늘부터 다이어트 {시작함니다|시작합니다} 💗 (진짜임)', anim: 'idle', prop: '' });
 
 const lim = v => Math.max(0, Math.min(100, v));
 const clamp = s => { s.will = lim(s.will); s.sta = lim(s.sta); s.hunger = lim(s.hunger); };
@@ -104,10 +104,11 @@ function talk(s, key, says, rng) {
 // 배고픔 100 → 강제 폭식
 function starving(s) {
   if (s.hunger < 100) return;
-  s.w += 3; s.hunger = 30; s.log.push('🍔 배고픔 폭발! 눈 떠보니 배달 음식 3개를 먹고 있었다. (+3kg)');
+  s.w += 3; s.hunger = 30; s.events.push('starve'); s.log.push('🍔 배고픔 폭발! 눈 떠보니 배달 음식 3개를 먹고 있었다. (+3kg)');
 }
 
 function check(s) {
+  if (s.w >= 90 && !s.danger) { s.danger = true; s.events.push('danger'); }
   if (s.w >= PIG) s.over = 'pig';
   else if (s.w <= GOAL) s.over = 'win';
 }
@@ -116,12 +117,14 @@ function check(s) {
 function act(s, id, rng = Math.random) {
   const [, , anim, prop, says, fn] = ACTIONS[id];
   const before = s.w;
-  s.anim = anim; s.prop = prop; s.fail = s.awaken = false;
+  s.anim = anim; s.prop = prop; s.fail = s.awaken = false; s.events = [];
   const binge = s.binge; s.binge = false; // 어제 단식했으면 오늘 폭식 (오늘 단식은 내일 터짐)
   s.cnt[id] = (s.cnt[id] || 0) + 1;
   s.streak = s.streak.id === id ? { id, n: s.streak.n + 1 } : { id, n: 1 };
   s.last = id;
   s.log = [fn(s, rng)];
+  if (s.fail) s.events.push('skip');
+  else if (s.awaken) s.events.push('awaken');
   if (s.fail) { // 운동하러 갔다가 포기 → 소파 장면 + 핑계
     s.anim = 'rest'; s.prop = '🛋️';
     talk(s, 'skip', ['운동복 입은 나 너무 {귀여웡|귀여워}.. 오늘은 여기까지 💗', '내일부터 진짜 {운동할께|운동할게} 양심적으로', '발이 {무리가 됬는지|무리가 됐는지} 오늘은 쉬쓰 ..'], rng);
@@ -129,10 +132,10 @@ function act(s, id, rng = Math.random) {
   else talk(s, id, says, rng);
   if (!s.fail) s.hunger += HUNGER[id] || 0;
   starving(s);
-  if (binge) { s.w += 2; s.log.push('어제 굶은 반동으로 폭식했다. (+2kg)'); }
-  if (s.loss > 0) { const y = s.loss * BAL.yoyo; s.w += y; if (y >= 0.2) s.log.push('요요가 왔다. (+' + y.toFixed(1) + 'kg)'); }
+  if (binge) { s.w += 2; s.events.push('binge'); s.log.push('어제 굶은 반동으로 폭식했다. (+2kg)'); }
+  if (s.loss > 0) { const y = s.loss * BAL.yoyo; s.w += y; if (y >= 0.8) s.events.push('yoyo'); if (y >= 0.2) s.log.push('요요가 왔다. (+' + y.toFixed(1) + 'kg)'); }
   s.loss = Math.max(0, before - s.w);
-  if (s.sta <= 0) { s.w += 1; s.sta = 30; s.log.push('체력 방전으로 쓰러져 배달만 시켰다. (+1kg)'); }
+  if (s.sta <= 0) { s.w += 1; s.sta = 30; s.events.push('faint'); s.log.push('체력 방전으로 쓰러져 배달만 시켰다. (+1kg)'); }
   clamp(s); check(s);
   return s;
 }
@@ -145,6 +148,7 @@ function tempted(s, rng = Math.random) {
 }
 
 function temptation(s, eat, rng = Math.random) {
+  s.events = [];
   const cost = resistCost(s);
   if (!eat && s.will >= cost) {
     s.will -= cost; s.log = ['꾹 참았다. (의지력 -' + cost + ')'];
@@ -166,11 +170,12 @@ function endDay(s, rng = Math.random) {
   if (s.day > 25) s.w += 3; // 연말 회식 시즌: 시간 끌면 반드시 찐다
   // 쉬거나 책 읽다 잠든 밤엔 가끔 몽유병 냉장고 습격
   if (['rest', 'book'].includes(s.last) && rng() < 0.35) {
-    s.w += 2; s.hunger = 0; s.raids++; s.anim = 'raid'; s.prop = '🍗';
+    s.w += 2; s.hunger = 0; s.raids++; s.events.push('raid'); s.anim = 'raid'; s.prop = '🍗';
     s.log.push('🌙 새벽 3시, 몽유병 발동. 아침에 보니 냉장고가 텅 비었다. (+2kg)');
     talk(s, 'raid', ['기억이 {안나는대|안 나는데} 입에 양념이 {묻어있슴|묻어 있음} ..', '쉿쓰 조용쓰 {엄마한태|엄마한테} 비밀 💗'], rng);
   }
   s.w += BAL.drift; s.will += 20; s.sta += 5; s.hunger += 8; s.day++;
+  if (s.day === 26) s.events.push('season');
   starving(s); clamp(s); check(s);
 }
 // 유혹 없는 날도 하루 정리

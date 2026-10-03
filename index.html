@@ -17,7 +17,7 @@
   .chips{display:flex;gap:6px;justify-content:center;margin:8px 0;flex-wrap:wrap}
   .chip{background:#fff;border-radius:999px;padding:3px 10px;font-size:14px;box-shadow:0 2px 0 #f0b9a0}
 
-  #stage{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 5px 0 #d9907a;background:#fff3d6;aspect-ratio:360/280}
+  #stage{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 5px 0 #d9907a;background:#fff3d6;aspect-ratio:360/300}
   #stage canvas{display:block;width:100%!important;height:auto!important}
   #bubble{position:absolute;top:8px;left:10px;right:10px;background:#fff;border:3px solid #3b2a20;border-radius:16px;padding:6px 10px;font-size:16px;z-index:5;text-align:center;animation:pop .25s}
   #bubble:empty{display:none}
@@ -47,8 +47,22 @@
   .cmt b{font-weight:400;color:#8e24aa}
   @keyframes slide{from{transform:translateX(-30px);opacity:0}}
   @keyframes fade{to{opacity:0}}
-  #toast{position:fixed;top:12px;left:50%;transform:translate(-50%,-150%);background:#3b2a20;color:#ffd54f;padding:10px 16px;border-radius:14px;z-index:20;transition:transform .35s;font-size:16px;white-space:nowrap}
-  #toast.on{transform:translate(-50%,0)}
+  /* 이벤트 팝업 */
+  #pop{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:#000a;overflow:hidden}
+  #vig{position:absolute;inset:0;box-shadow:inset 0 0 140px 50px #ff1744;display:none;pointer-events:none}
+  #rays{position:absolute;width:1000px;height:1000px;left:50%;top:50%;margin:-500px 0 0 -500px;border-radius:50%;background:repeating-conic-gradient(#ffd54f38 0 9deg,transparent 9deg 18deg);display:none;pointer-events:none}
+  #tape{position:absolute;top:13%;left:-20%;right:-20%;transform:rotate(-7deg);background:repeating-linear-gradient(45deg,#ffd600 0 18px,#111 18px 36px);padding:7px 0;display:none}
+  #tape span{display:block;white-space:nowrap;background:#111;color:#ffd600;font-size:18px;padding:3px 0;animation:marq 6s linear infinite}
+  @keyframes marq{to{transform:translateX(-50%)}}
+  #pop.alert #vig,#pop.alert #tape,#pop.good #rays{display:block}
+  #card{position:relative;width:min(86vw,360px);background:#fff;border-radius:24px;padding:18px 16px 14px;text-align:center;box-shadow:0 10px 0 #0004;border:4px solid #f0b9a0}
+  #pop.alert #card{border-color:#e53935}#pop.good #card{border-color:#ffb300}
+  #pic{font-size:64px;line-height:1.15}
+  #ptitle{font-size:28px;margin:4px 0;color:#3b2a20}
+  #pop.alert #ptitle{color:#e53935}#pop.good #ptitle{color:#f57f17}
+  #ptext{font-size:16px;line-height:1.5}#ptext b{color:#e53935;font-weight:400}
+  #psay{margin:10px 0 0;background:#fff8e7;border:2px solid #3b2a20;border-radius:14px;padding:6px 10px;font-size:15px}
+  #pbtns{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;margin-top:14px}
   #kg.fake{color:#e85d75}#kg.err{font-size:15px;color:#c0392b}
   .shake{animation:shk .4s}
   @keyframes shk{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
@@ -60,7 +74,6 @@
 </head>
 <body>
 <header><h1>🥋 홍금보 키우기</h1><div style="display:flex;align-items:center"><button id="mute"></button><div id="kg"></div></div></header>
-<div id="toast"></div>
 <div class="chips"><span class="chip">🎯 50kg</span><span class="chip">📅 <span id="day"></span>일차</span><span class="chip">💰 <span id="money"></span>원</span><span class="chip">✏️ <span id="fixes"></span></span></div>
 <div id="stage">
   <div id="bubble"></div>
@@ -70,24 +83,29 @@
 <div class="bars">💪 의지력<div class="bar"><i id="will" style="background:linear-gradient(90deg,#ff8a80,#e53935)"></i></div>
 ⚡ 체력<div class="bar"><i id="sta" style="background:linear-gradient(90deg,#80cbc4,#26a69a)"></i></div>
 🍔 배고픔<div class="bar"><i id="hunger" style="background:linear-gradient(90deg,#ffe082,#ff9800)"></i></div></div>
-<div id="event"></div>
 <div id="msg"></div>
 <div id="btns"></div>
+<div id="pop"><div id="vig"></div><div id="rays"></div><div id="tape"><span></span></div>
+  <div id="card"><div id="pic"></div><div id="ptitle"></div><div id="ptext"></div><div id="psay"></div><div id="pbtns"></div></div></div>
 <script src="game.js"></script>
 <script src="stage.js"></script>
 <script src="sfx.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-let s = Object.assign(newGame(), { badges: [] }), phase = 'act';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let s = Object.assign(newGame(), { badges: [] }), busy = false, newBadges = [];
 const typoHtml = t => t.replace(/\{([^|]+)\|([^}]+)\}/g, '<u class="typo" data-r="$2">$1</u>');
 const KIND = { buldak: 'food', drink: 'food', itaewon: 'food', salad: 'food', boxing: 'sport', running: 'sport', hiking: 'sport', dance: 'sport', conv: 'work', pcbang: 'work' };
 
-// 맞춤법 고쳐주기: 틀린 말 탭 → 빨간펜 교정 + 의지력 +3
-$('bubble').onclick = e => {
+// 맞춤법 고쳐주기: 틀린 말 탭 → 빨간펜 교정 + 의지력 +3 (말풍선, 팝업 공통)
+const fixTypo = e => {
   const u = e.target.closest('.typo'); if (!u) return;
   u.outerHTML = `<span class="typo-done"><s>${u.textContent}</s> <b>${u.dataset.r}</b></span>`;
-  s.fixes++; s.will = Math.min(100, s.will + 3); $('hint').style.display = 'none'; stats();
+  s.fixes++; s.will = Math.min(100, s.will + 3); if ($('hint')) $('hint').style.display = 'none'; stats(); Sfx.play('pop');
 };
+$('bubble').onclick = fixTypo; $('psay').onclick = fixTypo;
 
 function stats() {
   $('kg').innerHTML = s.w.toFixed(1) + '<small>kg</small>';
@@ -113,15 +131,56 @@ const BADGES = [
   ['🥊 샌드백이 이김', s => (s.cnt.boxing || 0) >= 5 && s.w >= 75],
   ['🐷 돼지 예약', s => s.w >= 90],
 ];
-let toasts = [];
-function toast(msg) {
-  toasts.push(msg); if (toasts.length > 1) return;
-  const next = () => {
-    if (!toasts.length) return;
-    $('toast').textContent = toasts[0]; $('toast').classList.add('on'); Sfx.play('fanfare');
-    setTimeout(() => { $('toast').classList.remove('on'); setTimeout(() => { toasts.shift(); next(); }, 400); }, 1800);
-  };
-  next();
+
+// 이벤트 팝업 [종류, 아이콘, 제목, 내용, 경고테이프 문구]
+const POPS = {
+  skip: ['info', '🛋️', '운동 포기', '운동복까지 입고 소파에 누웠다.<br>헬스장은 오늘도 기다린다.'],
+  awaken: ['good', '💥', '쿵푸 각성!!', '오늘따라 몸이 날아다닌다. <b>-4kg</b>'],
+  binge: ['alert', '🍕', '폭식 반동 경보', '어제 굶은 반동으로 폭식했다. <b>+2kg</b>'],
+  yoyo: ['alert', '🪀', '요요 경보', '빠졌던 살이 그대로 돌아왔다.'],
+  faint: ['alert', '🚑', '체력 방전', '쓰러져서 배달만 시켰다. <b>+1kg</b>'],
+  starve: ['alert', '🍔', '배고픔 폭발', '눈 떠보니 배달 음식 3개를 먹고 있었다. <b>+3kg</b>'],
+  raid: ['alert', '🚨', '긴급 속보', '새벽 3시 냉장고 습격 사건 발생.<br>용의자: 홍금보 (입가에 양념 묻음) <b>+2kg</b>', '속보 BREAKING'],
+  season: ['alert', '🍻', '연말 회식 시즌 돌입', '오늘부터 매일 <b>+3kg</b>.<br>빨리 끝내야 한다!'],
+  danger: ['alert', '🐷', '돼지 임계점 돌파', '90kg 돌파.<br>체중계가 비명을 지르기 시작했다.', 'DANGER'],
+};
+
+// 팝업: 순서대로 하나씩, 버튼 값으로 resolve (GSAP 애니메이션 + confetti)
+let popChain = Promise.resolve();
+const popup = o => (popChain = popChain.then(() => openPop(o)));
+function openPop({ kind, icon, title, text, say = '', tape = 'WARNING', btns = [['확인', true]] }) {
+  return new Promise(done => {
+    const pop = $('pop'); pop.className = kind; pop.style.display = 'flex';
+    $('pic').textContent = icon; $('ptitle').textContent = title; $('ptext').innerHTML = text;
+    $('psay').innerHTML = typoHtml(say); $('psay').style.display = say ? '' : 'none';
+    $('tape').firstElementChild.textContent = `⚠ ${tape} `.repeat(16);
+    $('pbtns').innerHTML = '';
+    const close = v => {
+      gsap.killTweensOf(['#card', '#vig', '#rays', '#pic']);
+      gsap.to('#card', { scale: 0.6, opacity: 0, duration: 0.18, onComplete: () => { pop.style.display = 'none'; done(v); } });
+    };
+    btns.forEach(([label, v, sub, cls]) => {
+      const b = document.createElement('button'); b.className = cls || 'etc';
+      b.innerHTML = label + (sub ? `<small>${sub}</small>` : ''); b.onclick = () => close(v); $('pbtns').append(b);
+    });
+    gsap.fromTo('#card', { scale: 0.2, rotation: -10, opacity: 0, x: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.7, ease: 'elastic.out(1,0.55)' });
+    gsap.fromTo('#pic', { scale: 0 }, { scale: 1, duration: 0.5, delay: 0.15, ease: 'back.out(3)' });
+    if (kind === 'alert') {
+      Sfx.play('siren'); navigator.vibrate?.([120, 60, 120]);
+      gsap.fromTo('#vig', { opacity: 0.25 }, { opacity: 1, duration: 0.3, repeat: -1, yoyo: true });
+      gsap.fromTo('#card', { x: -10 }, { x: 10, duration: 0.05, repeat: 7, yoyo: true, delay: 0.1, onComplete: () => gsap.set('#card', { x: 0 }) });
+    } else if (kind === 'good') {
+      Sfx.play('fanfare');
+      gsap.fromTo('#rays', { rotation: 0 }, { rotation: 360, duration: 8, repeat: -1, ease: 'none' });
+      confetti({ particleCount: 140, spread: 90, origin: { y: 0.55 }, zIndex: 60 });
+    } else Sfx.play('pop');
+  });
+}
+
+async function events() {
+  for (const e of s.events) { const [kind, icon, title, text, tape] = POPS[e]; await popup({ kind, icon, title, text, tape }); }
+  s.events = [];
+  for (const b of newBadges.splice(0)) await popup({ kind: 'good', icon: '🏅', title: '업적 달성', text: `<b>${b}</b>` });
 }
 
 // 행동 직후 연출: 효과음, 친구 댓글, 업적, 체중계 장난
@@ -136,7 +195,7 @@ function after() {
     $('feed').append(el); setTimeout(() => el.remove(), 3800);
     while ($('feed').children.length > 2) $('feed').firstChild.remove();
   }
-  for (const [name, ok] of BADGES) if (!s.badges.includes(name) && ok(s)) { s.badges.push(name); toast('🏅 업적: ' + name); }
+  for (const [name, ok] of BADGES) if (!s.badges.includes(name) && ok(s)) { s.badges.push(name); newBadges.push(name); }
   if (s.over) return;
   const kg = $('kg'), back = ms => setTimeout(() => { kg.className = 'shake'; stats(); }, ms);
   if (s.anim === 'selfie') { kg.className = 'fake'; kg.innerHTML = '48.0<small>kg ✨</small>'; back(1600); }
@@ -177,12 +236,30 @@ function delta(d) {
   el.textContent = (d > 0 ? '+' : '') + d.toFixed(1) + 'kg'; el.style.color = d > 0 ? '#e53935' : '#26a69a';
   $('stage').append(el); setTimeout(() => el.remove(), 1500);
 }
+const show = w => { render(); delta(s.w - w); after(); };
+
+// 하루 진행: 행동 → 이벤트 팝업 → (저녁 유혹 팝업 or 그냥 밤) → 밤 이벤트 팝업
+async function day(id) {
+  if (busy) return; busy = true;
+  let w = s.w; act(s, id); show(w);
+  await events();
+  if (!s.over) {
+    await sleep(900); // 행동 장면 감상 시간
+    if (tempted(s)) {
+      const [sit, line] = s.tempt, cost = resistCost(s);
+      const eat = await popup({ kind: 'alert', tape: '유혹 경보', icon: [...sit][0], title: '유혹 경보!', text: sit.slice(sit.indexOf(' ') + 1), say: line,
+        btns: [['😤 참는다', false, `의지력 -${cost}${s.hunger >= 70 ? ' (배고픔!)' : ''}`, 'sport'], ['😋 먹는다', true, '+체중', 'food']] });
+      w = s.w; temptation(s, eat);
+    } else { s.events = []; w = s.w; skipTemptation(s); }
+    show(w); await events();
+  }
+  busy = false;
+}
 
 function render() {
   stats();
   $('bubble').innerHTML = typoHtml(s.say);
   $('msg').innerHTML = s.log.join('<br>') || '오늘은 뭘 할까?';
-  $('event').textContent = '';
   const b = $('btns'); b.innerHTML = ''; b.className = '';
   const add = (label, sub, fn, cls = '') => {
     const e = document.createElement('button'); e.className = cls;
@@ -190,40 +267,26 @@ function render() {
     e.innerHTML = `<span class="e">${emoji}</span>${rest.join(' ')}` + (sub ? `<small>${sub}</small>` : '');
     e.onclick = fn; b.append(e);
   };
-  const run = fn => { const w = s.w; fn(); render(); delta(s.w - w); after(); };
   if (s.over) return end(add);
   Stage.show(s);
-  if (phase === 'act') for (const id in ACTIONS) add(ACTIONS[id][0], ACTIONS[id][1], () => run(() => {
-    act(s, id);
-    phase = tempted(s) ? 'tempt' : 'act';
-    if (phase === 'act' && !s.over) skipTemptation(s);
-  }), KIND[id] || 'etc');
-  else {
-    b.className = 'two';
-    $('event').textContent = '🌙 ' + s.tempt[0] + '!';
-    // 행동 대사를 먼저 보여주고 잠시 뒤 유혹 대사로 전환
-    const line = s.tempt[1];
-    setTimeout(() => { if (phase === 'tempt' && s.tempt[1] === line) $('bubble').innerHTML = typoHtml(line); }, 1800);
-    add('😤 참는다', `의지력 -${resistCost(s)}${s.hunger >= 70 ? ' (배고픔!)' : ''}`, () => run(() => { temptation(s, false); phase = 'act'; }), 'sport');
-    add('😋 먹는다', '+체중', () => run(() => { temptation(s, true); phase = 'act'; }), 'food');
-  }
+  for (const id in ACTIONS) add(ACTIONS[id][0], ACTIONS[id][1], () => day(id), KIND[id] || 'etc');
 }
 
 function end(add) {
   $('btns').className = 'two';
   const badges = s.badges.length ? `<div class="badges">${s.badges.map(b => `<span class="badge">${b}</span>`).join('')}</div>` : '';
   if (s.over === 'win') {
-    Sfx.play('fanfare');
     s.anim = 'win'; Stage.show(s);
     $('bubble').innerHTML = typoHtml('해낸 나 너무 {뿌득해|뿌듯해}💗 이제 치킨 먹어도 {돼지|되지}?');
     $('msg').innerHTML = `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 상위 20%의 의지력!<br>맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회` + badges;
+    popup({ kind: 'good', icon: '🏆', title: '다이어트 성공!!', text: `${s.day}일 만에 50kg 달성.<br>홍금보 인생 최초의 사건.` });
   } else {
-    Sfx.play('fail'); setTimeout(() => Sfx.play('oink'), 1500);
     Stage.destroy();
     $('stage').innerHTML = '<img id="pig" src="img/pig.jpg" alt="돼지엔딩">';
     $('stage').style.aspectRatio = 'auto';
     $('msg').innerHTML = `<b>🐷 돼지엔딩</b><br>${s.day}일 만에 ${s.w.toFixed(0)}kg. 홍금보는 이제 쿵푸가 아니라 구르기를 한다.<br>`
       + `통장 ${s.money.toLocaleString()}원 · 맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회<br>"내일부터" 선언 ${s.tomorrow}회 · 냉장고 습격 ${s.raids}회<br>(80%의 사람이 여기서 끝나요)` + badges;
+    popup({ kind: 'alert', tape: 'GAME OVER', icon: '🐷', title: '100kg 달성', text: `${s.day}일 만에 돼지가 되었습니다.<br>"네? 저요?"` }).then(() => Sfx.play('fail'));
   }
   add('📤 결과 공유', '단톡방에 박제', shareCard, 'food');
   add('🔄 다시 도전', '', () => location.reload(), 'etc');

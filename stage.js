@@ -12,68 +12,102 @@ const Stage = (() => {
   const floaty = (obj, delay = 0) =>
     sc.tweens.add({ targets: obj, y: obj.y - 40, alpha: 0, duration: 1500, repeat: -1, delay });
 
-  // 외곽선 스타일: 모든 도형을 테두리색으로 o만큼 크게 먼저 칠하고 → 원래 색으로 덮는다 (겹쳐도 바깥 실루엣만 테두리)
-  const OUT = 0x3b2a20, TEE = 0xa4c43a, TEE_D = 0x86a32a, TEE_L = 0xc6e06a, PANTS = 0x2f3550, SHOE = 0xf7f7f7;
-  const rr = (x, y, w, h, r) => (g, o) => g.fillRoundedRect(x - o, y - o, w + 2 * o, h + 2 * o, Math.min(r + o, (w + 2 * o) / 2, (h + 2 * o) / 2));
-  const el = (x, y, w, h) => (g, o) => g.fillEllipse(x, y, w + 2 * o, h + 2 * o);
-  const outlined = (g, shapes) => {
-    shapes.forEach(([, s]) => { g.fillStyle(OUT); s(g, 2.5); });
-    shapes.forEach(([c, s]) => { g.fillStyle(c); s(g, 0); });
-    return g;
+  // ── 몸 부위는 SVG 일러스트로 그려서 텍스처로 굽는다 (체중 단계별 캐시) ──
+  const OUT = '#3b2a20';
+  const DEFS = `<defs>
+    <linearGradient id="t" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cbe56a"/><stop offset=".5" stop-color="#a8c83c"/><stop offset="1" stop-color="#7e9d24"/></linearGradient>
+    <radialGradient id="sh" cx=".32" cy=".28" r=".85"><stop offset=".5" stop-color="#1e2a05" stop-opacity="0"/><stop offset="1" stop-color="#1e2a05" stop-opacity=".38"/></radialGradient>
+    <linearGradient id="sk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbd6b6"/><stop offset="1" stop-color="#e2a47c"/></linearGradient>
+    <linearGradient id="pa" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#46507a"/><stop offset="1" stop-color="#242a44"/></linearGradient>
+  </defs>`;
+  const svg = (w, h, body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w * 2}" height="${h * 2}" viewBox="0 0 ${w} ${h}">${DEFS}${body}</svg>`;
+  const ln = `stroke="${OUT}" stroke-width="3" stroke-linejoin="round"`;
+
+  const dims = f => {
+    const d = { f, bw: 50 + f * 110, bh: 80 + f * 24, legW: 15 + f * 14, legH: 40, armW: 12 + f * 10 };
+    d.hip = -d.legH + 2; d.top = d.hip - d.bh + 6; d.sy = d.top + 12; d.sx = d.bw / 2 - 7 + f * 4;
+    return d;
   };
 
-  // 체중에 따라 퉁퉁해지는 몸. f: 0(50kg) ~ 1(100kg)
-  function hong(f, pig, itemR, itemL) {
-    const bw = 50 + f * 110, bh = 80 + f * 24, legW = 15 + f * 14, legH = 40, hip = -legH + 2;
-    const top = hip - bh + 6, sy = top + 12, sx = bw / 2 - 7 + f * 4, armW = 12 + f * 10;
+  function torsoSvg({ f, bw: w, bh: h }) {
+    const b = (0.06 + f * 0.16) * w, W2 = w + 2 * b + 24, H2 = h + 30 + f * 10, cx = W2 / 2, t0 = 8, hb = t0 + h;
+    const d = `M${cx - 12},${t0} Q${cx},${t0 + 12} ${cx + 12},${t0} L${cx + w * 0.4},${t0 + 2} Q${cx + w / 2},${t0 + 4} ${cx + w / 2},${t0 + h * 0.28}
+      C${cx + w / 2 + b},${t0 + h * 0.45} ${cx + w / 2 + b},${t0 + h * 1.0} ${cx + w * 0.3},${hb} Q${cx},${hb + 8} ${cx - w * 0.3},${hb}
+      C${cx - w / 2 - b},${t0 + h * 1.0} ${cx - w / 2 - b},${t0 + h * 0.45} ${cx - w / 2},${t0 + h * 0.28} Q${cx - w / 2},${t0 + 4} ${cx - w * 0.4},${t0 + 2} Z`;
+    const belly = f > 0.55 ? `<ellipse cx="${cx}" cy="${hb + 1}" rx="${w * 0.33}" ry="${6 + f * 8}" fill="url(#sk)" ${ln}/>
+      <ellipse cx="${cx}" cy="${hb + 4 + f * 3}" rx="1.6" ry="2.6" fill="#a8684a"/>` : '';
+    const px = cx + w * 0.1, py = t0 + h * 0.42, pr = 4 + f * 3;
+    const petals = [0, 1, 2, 3, 4].map(i => `<circle cx="${px + Math.cos(i * 1.257) * pr}" cy="${py + Math.sin(i * 1.257) * pr}" r="${pr * 0.75}" fill="#7a4a2a" opacity=".85"/>`).join('');
+    const crease = f > 0.3 ? `<path d="M${cx - w * 0.26},${t0 + h * 0.66} Q${cx},${t0 + h * 0.75} ${cx + w * 0.26},${t0 + h * 0.66}" stroke="#6f8c1e" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"/>` : '';
+    return { W: W2, H: H2, ox: cx, oy: hb, s: svg(W2, H2, `${belly}
+      <path d="${d}" fill="url(#t)" ${ln}/><path d="${d}" fill="url(#sh)"/>
+      <path d="M${cx - 13},${t0 + 1} Q${cx},${t0 + 15} ${cx + 13},${t0 + 1}" fill="none" stroke="#6f8c1e" stroke-width="4" stroke-linecap="round"/>
+      <ellipse cx="${cx - w * 0.2}" cy="${t0 + h * 0.2}" rx="${w * 0.12}" ry="${h * 0.07}" fill="#fff" opacity=".3"/>
+      ${crease}${petals}<circle cx="${px}" cy="${py}" r="${pr * 0.5}" fill="#e0a85e"/>`) };
+  }
+
+  function armSvg({ armW: a }) {
+    const W2 = a + 30, H2 = 76, x = W2 / 2, y = 8;
+    return { W: W2, H: H2, ox: x, oy: y, s: svg(W2, H2, `
+      <rect x="${x - a / 2}" y="${y + 8}" width="${a}" height="${42}" rx="${a / 2}" fill="url(#sk)" ${ln}/>
+      <ellipse cx="${x + a / 2 + 1}" cy="${y + 46}" rx="3.6" ry="5.5" fill="#f2c19c" ${ln.replace('3', '2.2')}/>
+      <circle cx="${x}" cy="${y + 50}" r="${a / 2 + 3.5}" fill="url(#sk)" ${ln}/>
+      <path d="M${x - 3},${y + 53} q2,2 4,0 M${x + 1},${y + 55} q2,2 4,0" stroke="#c98a63" stroke-width="1.4" fill="none"/>
+      <path d="M${x - a / 2 - 5},${y + 14} L${x - a / 2 - 2},${y - 4} Q${x},${y - 9} ${x + a / 2 + 2},${y - 4} L${x + a / 2 + 5},${y + 14} Q${x},${y + 19} ${x - a / 2 - 5},${y + 14} Z" fill="url(#t)" ${ln}/>
+      <path d="M${x - a / 2 - 4},${y + 11} Q${x},${y + 16} ${x + a / 2 + 4},${y + 11}" stroke="#6f8c1e" stroke-width="2" fill="none"/>`) };
+  }
+
+  function legSvg({ legW: l, legH: h }) {
+    const W2 = l + 24, H2 = h + 14, x = W2 / 2, y = 4, sy = y + h - 13;
+    return { W: W2, H: H2, ox: x, oy: y, s: svg(W2, H2, `
+      <rect x="${x - l / 2}" y="${y}" width="${l}" height="${h - 8}" rx="6" fill="url(#pa)" ${ln}/>
+      <path d="M${x - l / 2 + 3},${y + h - 13} h${l - 6}" stroke="#1b2036" stroke-width="2"/>
+      <path d="M${x - l / 2 - 3},${sy + 13} L${x - l / 2 - 3},${sy + 5} Q${x - l / 2 - 3},${sy} ${x - l / 2 + 3},${sy} L${x + l / 2 + 1},${sy} Q${x + l / 2 + 9},${sy + 3} ${x + l / 2 + 9},${sy + 13} Z" fill="#fafafa" ${ln}/>
+      <rect x="${x - l / 2 - 3}" y="${sy + 10}" width="${l + 12}" height="3.5" fill="#cfcfcf"/>
+      <path d="M${x - l / 2 + 2},${sy + 7} Q${x},${sy + 3} ${x + l / 2 + 4},${sy + 8}" stroke="#a8c83c" stroke-width="2.4" fill="none"/>
+      <path d="M${x - 2},${sy + 1} v3 M${x + 2},${sy + 1} v3" stroke="#999" stroke-width="1.3"/>`) };
+  }
+
+  const made = {};
+  const bake = (key, part) => new Promise(done => {
+    if (sc.textures.exists(key)) return done();
+    const img = new Image();
+    img.onload = () => { if (!sc.textures.exists(key)) sc.textures.addImage(key, img); done(); };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(part.s);
+  });
+  async function parts(f) {
+    const k = Math.round(f * 20);
+    if (made[k]) return made[k];
+    const d = dims(k / 20);
+    d.k = k; d.torso = torsoSvg(d); d.arm = armSvg(d); d.leg = legSvg(d);
+    await Promise.all([bake('torso' + k, d.torso), bake('arm' + k, d.arm), bake('leg' + k, d.leg)]);
+    return made[k] = d;
+  }
+  const part = (key, pt, flip) => sc.add.image(0, 0, key).setScale(0.5).setOrigin(pt.ox / pt.W, pt.oy / pt.H).setFlipX(!!flip);
+
+  // 체중에 따라 퉁퉁해지는 몸 (d = parts() 결과)
+  function hong(d, pig, itemR, itemL) {
+    const { f, bw, legW, hip, top, sy, sx, k } = d;
     const p = { root: sc.add.container(180, GROUND), body: sc.add.container(0, 0), lean: sc.add.container(0, 0) };
-    p.root.add(p.body); p.body.add(p.lean);
+    p.root.add([sc.add.ellipse(0, 2, bw + 26, 10, 0x000000, 0.16), p.body]); p.body.add(p.lean);
 
-    const leg = x => {
-      const c = sc.add.container(x, hip), g = outlined(G(), [
-        [PANTS, rr(-legW / 2, 0, legW, legH - 8, 6)],
-        [SHOE, rr(-legW / 2 - 3, legH - 12, legW + 8, 13, 6)],
-      ]);
-      g.fillStyle(0xd0d0d0).fillRect(-legW / 2 - 3, legH - 3, legW + 8, 2.5);
-      c.add(g); return c;
-    };
-    p.legL = leg(-legW / 2 - 1 - f * 6); p.legR = leg(legW / 2 + 1 + f * 6);
+    const leg = (x, flip) => { const c = sc.add.container(x, hip); c.add(part('leg' + k, d.leg, flip)); return c; };
+    p.legL = leg(-legW / 2 - 1 - f * 6, true); p.legR = leg(legW / 2 + 1 + f * 6);
 
-    const t = outlined(G(), [
-      [SKIN, rr(-8, top - 10, 16, 16, 6)],
-      [TEE, rr(-bw / 2, top, bw, bh * 0.62, 22)],
-      [TEE, el(0, hip - bh * 0.34, bw * (1 + f * 0.12), bh * 0.7)],
-    ]);
-    t.fillStyle(TEE_D, 0.55).fillEllipse(bw * 0.2, hip - bh * 0.3, bw * 0.46, bh * 0.48);
-    t.fillStyle(TEE_L, 0.8).fillEllipse(-bw * 0.2, top + bh * 0.2, bw * 0.24, bh * 0.12);
-    t.lineStyle(3, TEE_D).beginPath().arc(0, top + 1, 9, 0.15, Math.PI - 0.15).strokePath();
-    // 사진 속 티셔츠의 갈색 꽃 프린트
-    const px = bw * 0.08, py = top + bh * 0.42, pr = 4 + f * 3;
-    t.fillStyle(0x7a4a2a, 0.85);
-    for (let i = 0; i < 5; i++) t.fillCircle(px + Math.cos(i * 1.257) * pr, py + Math.sin(i * 1.257) * pr, pr * 0.75);
-    t.fillStyle(0xd9a05b).fillCircle(px, py, pr * 0.5);
-    if (f > 0.55) { // 티셔츠 밖으로 나온 뱃살
-      outlined(t, [[SKIN, el(0, hip - 1, bw * 0.7, 8 + f * 14)]]);
-      t.fillStyle(0xb07050).fillCircle(0, hip - 1, 2);
-    }
+    p.torso = part('torso' + k, d.torso).setPosition(0, hip);
 
-    p.hw = (pig ? 100 : 78) * (1 + f * 0.35); p.hh = 90 * (1 + f * 0.1);
-    p.head = sc.add.container(0, top + 4);
+    p.hw = (pig ? 108 : 86) * (1 + f * 0.3); p.hh = 98 * (1 + f * 0.08);
+    p.head = sc.add.container(0, top + 8);
     p.head.add(sc.add.image(0, 0, pig ? 'pig' : 'face').setOrigin(0.5, 1).setDisplaySize(p.hw, p.hh));
 
-    const arm = (x, item) => {
-      const c = sc.add.container(x, sy);
-      c.add(outlined(G(), [
-        [SKIN, rr(-armW / 2, 0, armW, 50, armW / 2)],
-        [SKIN, el(0, 52, armW + 5, armW + 5)],
-        [TEE, rr(-armW / 2 - 4, -8, armW + 8, 24, 9)],
-      ]));
+    const arm = (x, item, flip) => {
+      const c = sc.add.container(x, sy); c.add(part('arm' + k, d.arm, flip));
       if (item) { item.setPosition(0, 56); c.add(item); }
       return c;
     };
-    p.armL = arm(-sx, itemL); p.armR = arm(sx, itemR);
+    p.armL = arm(-sx, itemL, true); p.armR = arm(sx, itemR);
     p.armL.angle = 14; p.armR.angle = -14;
-    p.lean.add([p.legL, p.legR, t, p.head, p.armL, p.armR]);
+    p.lean.add([p.legL, p.legR, p.torso, p.head, p.armL, p.armR]);
     return p;
   }
 
@@ -101,7 +135,7 @@ const Stage = (() => {
   };
 
   const SCENES = {
-    idle(p) { loop(p.body, { y: -4 }, 1000); },
+    idle(p) { loop(p.body, { y: -3 }, 1100); loop(p.torso, { scaleX: 0.51, scaleY: 0.508 }, 1100); loop(p.head, { angle: 2 }, 1600); },
     box(p, bg) {
       const g = G(); g.lineStyle(3, 0xcc3333).lineBetween(0, 150, 360, 150).lineBetween(0, 185, 360, 185); bg.add(g);
       const bag = sc.add.container(305, 0), b = G();
@@ -140,7 +174,7 @@ const Stage = (() => {
       danceMoves(p);
     },
     club(p, bg) {
-      const g = G(); g.fillStyle(0x241238).fillRect(0, 0, W, H); bg.add(g);
+      const g = G(); g.fillStyle(0x241238).fillRect(0, -20, W, H + 20); bg.add(g);
       [0xff00ff, 0x00ffff, 0xffff00, 0xff5555].forEach((c, i) => {
         const beam = G(); beam.fillStyle(c, 1).fillTriangle(180, 30, i * 100 - 20, 252, i * 100 + 40, 252);
         beam.alpha = 0.15; bg.add(beam); loop(beam, { alpha: 0.55 }, 300, { delay: i * 150 });
@@ -172,7 +206,7 @@ const Stage = (() => {
       p.armR.angle = -60; loop(p.armR, { angle: -95 }, 300);
     },
     pc(p, bg, fg) {
-      const g = G(); g.fillStyle(0x1d2338).fillRect(0, 0, W, H); bg.add(g);
+      const g = G(); g.fillStyle(0x1d2338).fillRect(0, -20, W, H + 20); bg.add(g);
       const neon = T(64, 36, 'PC방', 22, { color: '#00ffff' }); bg.add(neon); loop(neon, { alpha: 0.4 }, 500);
       const d = G(); d.fillStyle(0x444444).fillRect(20, 214, 320, 12);
       d.fillStyle(0x111111).fillRoundedRect(240, 138, 104, 70, 6); d.fillStyle(0x3a6df0).fillRect(246, 144, 92, 56);
@@ -196,7 +230,7 @@ const Stage = (() => {
       if (s.prop) { const e = T(110, 100, s.prop, 30); fg.add(e); loop(e, { angle: 12 }, 120); }
     },
     selfie(p, bg, fg) {
-      const g = G(); g.fillStyle(0xffd6e8).fillRect(0, 0, W, H); bg.add(g);
+      const g = G(); g.fillStyle(0xffd6e8).fillRect(0, -20, W, H + 20); bg.add(g);
       ['💗', '✨', '💖', '✨'].forEach((e, i) => { const h = T(40 + i * 95, 150 - (i % 2) * 60, e, 26); bg.add(h); floaty(h, i * 350); });
       p.armR.angle = -160;
       loop(p.head, { scaleX: 0.78 }, 700, { hold: 500 }); // 보정 앱 갸름 필터
@@ -205,7 +239,7 @@ const Stage = (() => {
       fg.add(T(300, 40, '보정 ON', 16, { color: '#e85d75' }));
     },
     raid(p, bg, fg) {
-      const g = G(); g.fillStyle(0x16203a).fillRect(0, 0, W, H);
+      const g = G(); g.fillStyle(0x16203a).fillRect(0, -20, W, H + 20);
       g.fillStyle(0xeeeeee).fillRoundedRect(250, 60, 90, 192, 8);          // 냉장고
       g.fillStyle(0xfff3a0).fillRect(258, 70, 74, 172);                    // 텅 빈 안쪽 불빛
       g.fillStyle(0xfff3a0, 0.25).fillTriangle(258, 70, 258, 242, 120, 252);
@@ -224,16 +258,18 @@ const Stage = (() => {
     },
   };
 
-  function show(s) {
+  async function show(s) {
     if (!sc) return;
     const k = s.w.toFixed(1) + s.anim + s.prop;
     if (k === key) return; key = k;
+    const d = await parts(Math.max(0, Math.min(1.1, (s.w - 50) / 50)));
+    if (key !== k || !sc) return; // 굽는 사이 다음 장면이 들어옴
     sc.tweens.killAll(); root.removeAll(true);
-    const sky = G(); sky.fillStyle(0xfff3d6).fillRect(0, 0, W, H);
+    const sky = G(); sky.fillStyle(0xfff3d6).fillRect(0, -20, W, H + 20);
     const floor = G(); floor.fillStyle(0xe9d29a).fillRect(0, GROUND, W, H - GROUND);
     const bg = sc.add.container(0, 0), fg = sc.add.container(0, 0);
     const items = (ITEMS[s.anim] || []).map(v => typeof v === 'function' ? v() : T(0, 0, v.replace('{p}', s.prop), 24));
-    const p = hong(Math.max(0, Math.min(1.1, (s.w - 50) / 50)), s.w >= 90, items[0], items[1]);
+    const p = hong(d, s.w >= 90, items[0], items[1]);
     root.add([sky, bg, floor, p.root, fg]);
     (SCENES[s.anim] || SCENES.idle)(p, bg, fg, s);
     if (s.w >= 90) { // 90kg 넘으면 쿵쿵: 화면 흔들림 + 바닥 금
@@ -248,11 +284,11 @@ const Stage = (() => {
   function init(parent) {
     return new Promise(done => {
       game = new Phaser.Game({
-        type: Phaser.AUTO, parent, width: W * 2, height: H * 2, transparent: true,
+        type: Phaser.AUTO, parent, width: W * 2, height: (H + 20) * 2, transparent: true,
         scale: { mode: Phaser.Scale.NONE },
         scene: {
           preload() { this.load.image('face', 'img/face.png'); this.load.image('pig', 'img/face-pig.png'); },
-          create() { sc = this; root = this.add.container(0, 0).setScale(2); done(); },
+          create() { sc = this; root = this.add.container(0, 40).setScale(2); done(); }, // 위 20은 말풍선 자리
         },
       });
     });

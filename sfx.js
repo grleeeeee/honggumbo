@@ -32,6 +32,8 @@ const Sfx = (() => {
     growl: () => tone(90, 0.6, { type: 'sawtooth', slide: 40, vol: 0.08 }),
     snore: () => tone(140, 0.8, { type: 'triangle', slide: -60, vol: 0.12 }),
     fanfare: () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.25, { type: 'triangle', delay: i * 0.12, vol: 0.2 })),
+    siren: () => [0, 0.32, 0.64].forEach(d => tone(650, 0.3, { type: 'square', slide: 450, delay: d, vol: 0.05 })),
+    pop: () => tone(480, 0.12, { slide: 420, vol: 0.15 }),
     fail: () => [392, 370, 349, 311].forEach((f, i) => tone(f, i === 3 ? 0.8 : 0.35, { type: 'sawtooth', delay: i * 0.35, vol: 0.08 })),
   };
   return {
