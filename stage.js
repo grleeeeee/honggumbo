@@ -1,7 +1,7 @@
 // 무대: Phaser 3 로 홍금보(사진 얼굴 + 그림 몸통)와 활동 장면을 그린다.
 // 좌표는 360x280 기준, 레티나 대응으로 캔버스는 2배로 그리고 root 를 2배 확대한다.
 const Stage = (() => {
-  const W = 360, H = 280, GROUND = 252, SKIN = 0xeab38c, SHIRT = 0x222222;
+  const W = 360, H = 280, GROUND = 252, SKIN = 0xf0bf98;
   let game, sc, root, key = '';
 
   const T = (x, y, str, size = 28, style = {}) =>
@@ -12,39 +12,62 @@ const Stage = (() => {
   const floaty = (obj, delay = 0) =>
     sc.tweens.add({ targets: obj, y: obj.y - 40, alpha: 0, duration: 1500, repeat: -1, delay });
 
+  // 외곽선 스타일: 모든 도형을 테두리색으로 o만큼 크게 먼저 칠하고 → 원래 색으로 덮는다 (겹쳐도 바깥 실루엣만 테두리)
+  const OUT = 0x3b2a20, TEE = 0xa4c43a, TEE_D = 0x86a32a, TEE_L = 0xc6e06a, PANTS = 0x2f3550, SHOE = 0xf7f7f7;
+  const rr = (x, y, w, h, r) => (g, o) => g.fillRoundedRect(x - o, y - o, w + 2 * o, h + 2 * o, Math.min(r + o, (w + 2 * o) / 2, (h + 2 * o) / 2));
+  const el = (x, y, w, h) => (g, o) => g.fillEllipse(x, y, w + 2 * o, h + 2 * o);
+  const outlined = (g, shapes) => {
+    shapes.forEach(([, s]) => { g.fillStyle(OUT); s(g, 2.5); });
+    shapes.forEach(([c, s]) => { g.fillStyle(c); s(g, 0); });
+    return g;
+  };
+
   // 체중에 따라 퉁퉁해지는 몸. f: 0(50kg) ~ 1(100kg)
   function hong(f, pig, itemR, itemL) {
-    const bw = 54 + f * 110, bh = 78 + f * 26, legW = 14 + f * 14, legH = 38, hip = -legH;
-    const sy = hip - bh + 24, sx = bw / 2 - 8 + f * 4, armW = 13 + f * 10;
+    const bw = 50 + f * 110, bh = 80 + f * 24, legW = 15 + f * 14, legH = 40, hip = -legH + 2;
+    const top = hip - bh + 6, sy = top + 12, sx = bw / 2 - 7 + f * 4, armW = 12 + f * 10;
     const p = { root: sc.add.container(180, GROUND), body: sc.add.container(0, 0), lean: sc.add.container(0, 0) };
     p.root.add(p.body); p.body.add(p.lean);
 
     const leg = x => {
-      const c = sc.add.container(x, hip), g = G();
-      g.fillStyle(0x3a3a55).fillRoundedRect(-legW / 2, 0, legW, legH, 5);
-      g.fillStyle(0x111111).fillEllipse(0, legH, legW + 8, 10);
+      const c = sc.add.container(x, hip), g = outlined(G(), [
+        [PANTS, rr(-legW / 2, 0, legW, legH - 8, 6)],
+        [SHOE, rr(-legW / 2 - 3, legH - 12, legW + 8, 13, 6)],
+      ]);
+      g.fillStyle(0xd0d0d0).fillRect(-legW / 2 - 3, legH - 3, legW + 8, 2.5);
       c.add(g); return c;
     };
-    p.legL = leg(-legW / 2 - 2 - f * 6); p.legR = leg(legW / 2 + 2 + f * 6);
+    p.legL = leg(-legW / 2 - 1 - f * 6); p.legR = leg(legW / 2 + 1 + f * 6);
 
-    const t = G();
-    t.fillStyle(SHIRT).fillEllipse(0, hip - bh / 2 + 8, bw, bh);
-    t.fillStyle(0x3a3a3a).fillEllipse(-bw * 0.14, hip - bh * 0.62, bw * 0.34, bh * 0.22);
+    const t = outlined(G(), [
+      [SKIN, rr(-8, top - 10, 16, 16, 6)],
+      [TEE, rr(-bw / 2, top, bw, bh * 0.62, 22)],
+      [TEE, el(0, hip - bh * 0.34, bw * (1 + f * 0.12), bh * 0.7)],
+    ]);
+    t.fillStyle(TEE_D, 0.55).fillEllipse(bw * 0.2, hip - bh * 0.3, bw * 0.46, bh * 0.48);
+    t.fillStyle(TEE_L, 0.8).fillEllipse(-bw * 0.2, top + bh * 0.2, bw * 0.24, bh * 0.12);
+    t.lineStyle(3, TEE_D).beginPath().arc(0, top + 1, 9, 0.15, Math.PI - 0.15).strokePath();
+    // 사진 속 티셔츠의 갈색 꽃 프린트
+    const px = bw * 0.08, py = top + bh * 0.42, pr = 4 + f * 3;
+    t.fillStyle(0x7a4a2a, 0.85);
+    for (let i = 0; i < 5; i++) t.fillCircle(px + Math.cos(i * 1.257) * pr, py + Math.sin(i * 1.257) * pr, pr * 0.75);
+    t.fillStyle(0xd9a05b).fillCircle(px, py, pr * 0.5);
     if (f > 0.55) { // 티셔츠 밖으로 나온 뱃살
-      t.fillStyle(SKIN).fillEllipse(0, hip - 2, bw * 0.72, 8 + f * 14);
+      outlined(t, [[SKIN, el(0, hip - 1, bw * 0.7, 8 + f * 14)]]);
       t.fillStyle(0xb07050).fillCircle(0, hip - 1, 2);
     }
 
     p.hw = (pig ? 100 : 78) * (1 + f * 0.35); p.hh = 90 * (1 + f * 0.1);
-    p.head = sc.add.container(0, sy + 2);
+    p.head = sc.add.container(0, top + 4);
     p.head.add(sc.add.image(0, 0, pig ? 'pig' : 'face').setOrigin(0.5, 1).setDisplaySize(p.hw, p.hh));
 
     const arm = (x, item) => {
-      const c = sc.add.container(x, sy), g = G();
-      g.fillStyle(SKIN).fillRoundedRect(-armW / 2, -2, armW, 52, armW / 2);
-      g.fillStyle(SHIRT).fillRoundedRect(-armW / 2 - 2, -6, armW + 4, 20, 7);
-      g.fillStyle(SKIN).fillCircle(0, 52, armW / 2 + 2);
-      c.add(g);
+      const c = sc.add.container(x, sy);
+      c.add(outlined(G(), [
+        [SKIN, rr(-armW / 2, 0, armW, 50, armW / 2)],
+        [SKIN, el(0, 52, armW + 5, armW + 5)],
+        [TEE, rr(-armW / 2 - 4, -8, armW + 8, 24, 9)],
+      ]));
       if (item) { item.setPosition(0, 56); c.add(item); }
       return c;
     };
