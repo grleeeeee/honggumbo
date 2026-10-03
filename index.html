@@ -5,62 +5,172 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>홍금보 키우기</title>
 <style>
-  body{font-family:system-ui,sans-serif;max-width:420px;margin:0 auto;padding:16px;background:#fff8e7;color:#222;text-align:center}
-  h1{margin:8px 0}
-  #face{height:150px;display:flex;align-items:center;justify-content:center}
-  #face>*{transition:transform .3s}#photo{max-height:150px;max-width:100%;border-radius:12px}
-  #btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  #kg{font-size:44px;font-weight:700}
-  .bar{height:12px;background:#ddd;border-radius:6px;margin:4px 0 10px;overflow:hidden}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,sans-serif;max-width:420px;margin:0 auto;padding:10px 12px 24px;background:#fff8e7;color:#222;text-align:center;-webkit-tap-highlight-color:transparent}
+  h1{margin:4px 0;font-size:20px}
+  #kg{font-size:36px;font-weight:800;line-height:1.1}
+  .sub{font-size:13px;color:#666}
+
+  /* 무대 */
+  #stage{position:relative;height:250px;margin:6px 0;background:linear-gradient(#ffe8b0,#fff8e7 70%);border-radius:16px;overflow:hidden}
+  #stage::after{content:'';position:absolute;left:0;right:0;bottom:0;height:22px;background:#e9d29a}
+  #bubble{position:absolute;top:8px;left:8px;right:8px;background:#fff;border:2px solid #222;border-radius:14px;padding:6px 10px;font-size:15px;z-index:5;min-height:34px}
+  #bubble:empty{display:none}
+  #bubble::after{content:'';position:absolute;bottom:-9px;left:50%;border:8px solid transparent;border-top-color:#222;border-bottom:0}
+  .typo{text-decoration:underline wavy #e63946;cursor:pointer}
+  .typo-done s{color:#999}.typo-done b{color:#e63946;font-family:cursive}
+  #hint{position:absolute;bottom:26px;right:8px;font-size:11px;color:#a33;z-index:5}
+
+  #char{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;--fat:.2}
+  #head{width:92px;position:relative;z-index:3;margin-bottom:-12px;transform-origin:50% 90%}
+  .torso{position:relative;width:calc(56px + var(--fat)*120px);height:calc(64px + var(--fat)*24px);background:#222;border-radius:45% 45% 38% 38%;z-index:2;transition:width .6s,height .6s}
+  .arm{position:absolute;top:6px;width:16px;height:52px;background:#e9b48a;border-radius:8px;border-top:16px solid #222;transform-origin:50% 6px}
+  .arm.l{left:-10px;transform:rotate(18deg)}.arm.r{right:-10px;transform:rotate(-18deg)}
+  .legs{display:flex;gap:6px;margin-top:-4px}
+  .legs i{display:block;width:calc(16px + var(--fat)*16px);height:28px;background:#3a3a55;border-radius:0 0 6px 6px;transform-origin:50% 0;transition:width .6s}
+  #prop{position:absolute;font-size:34px;z-index:4;right:-46px;top:60px;opacity:0}
+  .delta{position:absolute;left:22%;top:55%;font-weight:800;font-size:22px;z-index:6;animation:up 1.4s forwards;pointer-events:none}
+  @keyframes up{from{transform:translate(-50%,0);opacity:1}to{transform:translate(-50%,-60px);opacity:0}}
+
+  /* 애니메이션 */
+  .idle{animation:bob 2s ease-in-out infinite}
+  @keyframes bob{50%{transform:translateX(-50%) translateY(-4px)}}
+  .eat #head{animation:chomp .25s 6}
+  @keyframes chomp{50%{transform:scaleY(.9) scaleX(1.06)}}
+  .eat #prop{animation:feed 1.5s}
+  @keyframes feed{0%{opacity:1;transform:translate(30px,0)}60%{opacity:1;transform:translate(-55px,-30px) scale(.8)}100%{opacity:0;transform:translate(-55px,-30px) scale(.2)}}
+  .drink #head{animation:tilt 1.5s}
+  @keyframes tilt{30%,70%{transform:rotate(-22deg)}}
+  .drink #prop{opacity:1;top:20px;right:-30px;animation:tilt 1.5s}
+  .punch .arm.r{animation:jab .3s 5}
+  @keyframes jab{50%{transform:rotate(-95deg) translateY(10px)}}
+  .punch #prop{opacity:1;animation:jabp .3s 5}
+  @keyframes jabp{50%{transform:translateX(18px)}}
+  .run{animation:hop .3s 5}
+  @keyframes hop{50%{transform:translateX(-50%) translateY(-14px)}}
+  .run .legs i:first-child{animation:leg .3s 5}.run .legs i:last-child{animation:leg .3s 5 reverse}
+  @keyframes leg{0%,100%{transform:rotate(25deg)}50%{transform:rotate(-25deg)}}
+  .run #prop{opacity:1;right:auto;left:-50px;top:110px}
+  .dance{animation:wiggle .4s 4}
+  @keyframes wiggle{25%{transform:translateX(-50%) rotate(-12deg)}75%{transform:translateX(-50%) rotate(12deg)}}
+  .dance .arm.l{transform:rotate(150deg)}.dance .arm.r{transform:rotate(-150deg)}
+  .dance #prop{opacity:1;top:-10px;animation:bob 1s infinite}
+  .sleep #head{transform:rotate(25deg)}
+  .sleep #prop{opacity:1;top:0;animation:zz 1.6s infinite}
+  @keyframes zz{from{transform:translateY(10px);opacity:1}to{transform:translateY(-30px);opacity:0}}
+  .sad #head{transform:translateY(6px) rotate(-6deg);filter:saturate(.4)}
+  .sad #prop{opacity:1;top:10px}
+  .work{animation:shake .15s 10}
+  @keyframes shake{50%{transform:translateX(calc(-50% + 4px))}}
+  .work #prop{opacity:1}
+  .win #prop{opacity:1;top:-20px;right:-30px}
+
+  #pig{width:100%;border-radius:12px;display:block}
+  .bars{text-align:left;font-size:13px}
+  .bar{height:10px;background:#ddd;border-radius:5px;margin:2px 0 6px;overflow:hidden}
   .bar i{display:block;height:100%;transition:width .3s}
-  #msg{min-height:72px;background:#fff;border-radius:8px;padding:10px;margin:12px 0;line-height:1.5}
-  button{display:block;width:100%;padding:12px 6px;margin:0;touch-action:manipulation;font-size:16px;border:0;border-radius:8px;background:#ffb703;cursor:pointer}
-  button small{display:block;font-size:12px;color:#555}
+  #event{font-weight:700;margin:6px 0}
+  #msg{min-height:44px;background:#fff;border-radius:8px;padding:8px;margin:6px 0;line-height:1.45;font-size:14px}
+  #btns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  #btns.two{grid-template-columns:1fr 1fr}#btns.one{grid-template-columns:1fr}
+  #stage.ending{height:auto}#stage.ending::after{display:none}
+  button{width:100%;padding:10px 4px;font-size:14px;border:0;border-radius:8px;background:#ffb703;cursor:pointer;touch-action:manipulation;color:#222}
+  button small{display:block;font-size:10px;color:#6b4a00;margin-top:2px}
   button:active{background:#fb8500}
 </style>
 </head>
 <body>
 <h1>🥋 홍금보 키우기</h1>
-<div id="face"><img id="photo" src="img/1.jpg" alt="홍금보"></div>
 <div id="kg"></div>
-<div>목표 50kg · <span id="day"></span>일차</div>
-<div style="text-align:left;margin-top:10px">의지력<div class="bar"><i id="will" style="background:#e63946"></i></div>
+<div class="sub">목표 50kg · <span id="day"></span>일차 · 💰 <span id="money"></span>원 · ✏️ <span id="fixes"></span></div>
+<div id="stage">
+  <div id="bubble"></div>
+  <div id="char" class="idle">
+    <div id="prop"></div>
+    <img id="head" src="img/face.png" alt="홍금보">
+    <div class="torso"><i class="arm l"></i><i class="arm r"></i></div>
+    <div class="legs"><i></i><i></i></div>
+  </div>
+  <div id="hint">✏️ 틀린 맞춤법을 눌러서 고쳐줘</div>
+</div>
+<div class="bars">의지력<div class="bar"><i id="will" style="background:#e63946"></i></div>
 체력<div class="bar"><i id="sta" style="background:#2a9d8f"></i></div></div>
-<div>💰 통장 <span id="money"></span>원</div>
+<div id="event"></div>
 <div id="msg"></div>
 <div id="btns"></div>
 <script src="game.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-let s = newGame(), phase = 'act'; // act → tempt → act ...
-const best = () => localStorage.getItem('hkb-best');
+let s = newGame(), phase = 'act', timer; // act → tempt → act ...
+const typoHtml = t => t.replace(/\{([^|]+)\|([^}]+)\}/g, '<u class="typo" data-r="$2">$1</u>');
 
-function render() {
+// 맞춤법 고쳐주기: 틀린 말 탭 → 빨간펜 교정 + 의지력 +3
+$('bubble').onclick = e => {
+  const u = e.target.closest('.typo'); if (!u) return;
+  u.outerHTML = `<span class="typo-done"><s>${u.textContent}</s> <b>${u.dataset.r}</b></span>`;
+  s.fixes++; s.will = Math.min(100, s.will + 3); $('hint').style.display = 'none'; stats();
+};
+
+function stats() {
   $('kg').textContent = s.w.toFixed(1) + 'kg';
   $('day').textContent = s.day;
+  $('money').textContent = s.money.toLocaleString();
+  $('fixes').textContent = s.fixes;
   $('will').style.width = s.will + '%';
   $('sta').style.width = s.sta + '%';
-  $('photo').src = 'img/' + (s.over === 'pig' || s.w >= 100 ? 4 : s.w >= 80 ? 3 : s.w >= 65 ? 2 : 1) + '.jpg';
+  $('char').style.setProperty('--fat', Math.max(0, (s.w - 50) / 50));
+  $('head').src = s.w >= 90 ? 'img/face-pig.png' : 'img/face.png';
+}
+
+function animate(prevW) {
+  const c = $('char'); if (!c) return; // 돼지엔딩은 무대가 사진으로 바뀜
+  c.className = ''; void c.offsetWidth; c.className = s.anim; // 같은 애니메이션 재시작
+  $('prop').textContent = s.prop;
+  clearTimeout(timer); timer = setTimeout(() => c.className = 'idle', 1600);
+  const d = s.w - prevW;
+  if (Math.abs(d) >= 0.05) {
+    const el = document.createElement('div'); el.className = 'delta';
+    el.textContent = (d > 0 ? '+' : '') + d.toFixed(1) + 'kg'; el.style.color = d > 0 ? '#e63946' : '#2a9d8f';
+    $('stage').append(el); setTimeout(() => el.remove(), 1500);
+  }
+}
+
+function render() {
+  stats();
+  $('bubble').innerHTML = typoHtml(s.say);
   $('msg').innerHTML = s.log.join('<br>') || '오늘은 뭘 할까?';
-  const b = $('btns'); b.innerHTML = ''; b.style.display = '';
-  $('money').textContent = s.money.toLocaleString();
+  $('event').textContent = '';
+  const b = $('btns'); b.innerHTML = ''; b.className = '';
   const add = (label, sub, fn) => { const e = document.createElement('button'); e.innerHTML = label + (sub ? `<small>${sub}</small>` : ''); e.onclick = fn; b.append(e); };
+  const run = fn => { const w = s.w; fn(); render(); animate(w); };
   if (s.over) return end(add);
-  if (phase === 'act') for (const id in ACTIONS) add(ACTIONS[id][0], ACTIONS[id][1], () => { act(s, id); phase = tempted(s) && !s.over ? 'tempt' : 'act'; if (phase === 'act' && !s.over) skipTemptation(s); render(); });
+  if (phase === 'act') for (const id in ACTIONS) add(ACTIONS[id][0], ACTIONS[id][1], () => run(() => {
+    act(s, id);
+    phase = tempted(s) ? 'tempt' : 'act';
+    if (phase === 'act' && !s.over) skipTemptation(s);
+  }));
   else {
-    $('msg').innerHTML += '<br><b>🍗 저녁이다. 친구가 치킨을 시켰다!</b>';
-    b.style.display = 'block';
-    add('😤 참는다', '의지력 -20 (모자라면 못 참음)', () => { temptation(s, false); phase = 'act'; render(); });
-    add('😋 먹는다', '+체중', () => { temptation(s, true); phase = 'act'; render(); });
+    b.className = 'two';
+    $('event').textContent = '🌙 저녁. ' + s.tempt[0] + '!';
+    $('bubble').innerHTML = typoHtml(s.tempt[1]);
+    add('😤 참는다', '의지력 -20 (모자라면 실패)', () => run(() => { temptation(s, false); phase = 'act'; }));
+    add('😋 먹는다', '+체중', () => run(() => { temptation(s, true); phase = 'act'; }));
   }
 }
 
 function end(add) {
   const win = s.over === 'win';
-  
-  $('msg').innerHTML = win ? `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 당신은 상위 5%의 의지력!`
-    : `<b>🐷 돼지엔딩</b><br>${s.day}일 만에 ${s.w.toFixed(0)}kg. 홍금보는 이제 쿵푸가 아니라 구르기를 한다.<br>통장 잔고 ${s.money.toLocaleString()}원 (전부 불닭값으로 사라짐)<br>(95%의 사람이 여기서 끝나요)`;
-  add('🔄 다시 도전', '', () => { s = newGame(); phase = 'act'; render(); });
+  $('btns').className = 'one';
+  if (win) {
+    s.anim = 'win'; s.prop = '🏆';
+    $('bubble').innerHTML = typoHtml('나 진짜 {해냈다구|해냈다고}!! 이제 치킨 먹어도 {돼지|되지}?');
+    $('msg').innerHTML = `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 상위 5%의 의지력!<br>맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회`;
+  } else {
+    $('stage').innerHTML = '<img id="pig" src="img/pig.jpg" alt="돼지엔딩">'; $('stage').className = 'ending';
+    $('msg').innerHTML = `<b>🐷 돼지엔딩</b><br>${s.day}일 만에 ${s.w.toFixed(0)}kg. 홍금보는 이제 쿵푸가 아니라 구르기를 한다.<br>`
+      + `통장 ${s.money.toLocaleString()}원 · 맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회<br>(95%의 사람이 여기서 끝나요)`;
+  }
+  add('🔄 다시 도전', '', () => location.reload());
 }
 render();
 </script>
