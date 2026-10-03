@@ -47,6 +47,10 @@
   button .e{display:block;font-size:22px;line-height:1.2}
   button small{display:block;font-size:9.5px;color:#9a7a6a;margin-top:1px;letter-spacing:-.3px}
   #btns.two button{font-size:17px;padding:10px 4px}#btns.two button small{font-size:12px}
+  #chat{display:flex;align-items:center;gap:8px;background:#fff;border-radius:14px;padding:5px 10px;margin-top:6px;min-height:38px;font-size:14px;box-shadow:0 2px 0 #f0b9a0;line-height:1.3}
+  #chat.new{animation:slide .35s}
+  #chat i{width:28px;height:28px;border-radius:50%;background:linear-gradient(45deg,#f9a825,#e91e63,#8e24aa);font-style:normal;display:grid;place-items:center;font-size:15px;flex:none}
+  #chat b{font-weight:400;color:#8e24aa;margin-right:4px}
   #feed{position:absolute;left:8px;bottom:30px;display:flex;flex-direction:column;gap:4px;z-index:6;max-width:72%;pointer-events:none}
   .cmt{background:#fffe;border-radius:14px;padding:3px 10px 3px 3px;font-size:13px;display:flex;align-items:center;gap:6px;box-shadow:0 2px 6px #0002;animation:slide .3s,fade .5s 3.2s forwards}
   .cmt i{width:22px;height:22px;border-radius:50%;background:linear-gradient(45deg,#f9a825,#e91e63,#8e24aa);color:#fff;font-style:normal;display:grid;place-items:center;font-size:13px;flex:none}
@@ -87,10 +91,10 @@
 <div class="chips"><span class="chip">🎯 50kg</span><span class="chip">📅 <span id="day"></span>일차</span><span class="chip">💰 <span id="money"></span>원</span><span class="chip">✏️ <span id="fixes"></span></span></div>
 <div id="stage">
   <div id="bubble"></div>
-  <div id="feed"></div>
   <div id="ov"><div class="tape"><span></span></div><div class="ban"><div class="ic"></div><div class="tt"></div><div class="tx"></div></div></div>
   <div id="hint">✏️ 틀린 맞춤법을 눌러서 고쳐줘</div>
 </div>
+<div id="chat"></div>
 <div class="bars"><div>💪<div class="bar"><i id="will" style="background:linear-gradient(90deg,#ff8a80,#e53935)"></i></div></div>
 <div>⚡<div class="bar"><i id="sta" style="background:linear-gradient(90deg,#80cbc4,#26a69a)"></i></div></div>
 <div>🍔<div class="bar"><i id="hunger" style="background:linear-gradient(90deg,#ffe082,#ff9800)"></i></div></div></div>
@@ -186,18 +190,19 @@ async function events() {
 }
 
 // 행동 직후 연출: 효과음, 친구 댓글, 업적, 체중계 장난
-const AV = { 치킨창민: '🍗', 소주래인: '🍶', 누들석민: '🍜', 양주서영: '🥃', 갈비겨래: '🍖', 관장님: '🥊', 지코치님: '🏋️' };
+// 친구 댓글: 무대 아래 줄에 다음 댓글 올 때까지 표시
+function chat([who, text]) {
+  const c = $('chat'); if (!c) return;
+  c.innerHTML = `<i>${AV[who] || who[0]}</i><span><b>${who}</b>${text}</span>`;
+  c.classList.remove('new'); void c.offsetWidth; c.classList.add('new');
+}
+const AV = { 치킨창민: '🍗', 소주래인: '🍶', 누들석민: '🍜', 양주서영: '🥃', 갈비겨레: '🍖', 관장님: '🥊', 지코치님: '🏋️' };
 const SND = { eat: 'chomp', drink: 'gulp', club: 'beat', dance: 'beat', box: 'punch', conv: 'beep', pc: 'type', selfie: 'shutter', raid: 'chomp', run: 'step', hike: 'step', sad: 'growl', book: 'snore', rest: 'snore' };
 function after() {
   Sfx.play(SND[s.anim]);
   if (s.w >= 85 && ['eat', 'raid', 'drink'].includes(s.anim)) setTimeout(() => Sfx.play('oink'), 450);
   if (s.w >= 90) Sfx.play('thud');
-  if (s.comment && $('feed')) {
-    const el = document.createElement('div'); el.className = 'cmt';
-    el.innerHTML = `<i>${AV[s.comment[0]] || s.comment[0][0]}</i><span><b>@${s.comment[0]}</b> ${s.comment[1]}</span>`;
-    $('feed').append(el); setTimeout(() => el.remove(), 3800);
-    while ($('feed').children.length > 2) $('feed').firstChild.remove();
-  }
+  if (s.comment) chat(s.comment);
   for (const [name, ok] of BADGES) if (!s.badges.includes(name) && ok(s)) { s.badges.push(name); newBadges.push(name); }
   if (s.over) return;
   const kg = $('kg'), back = ms => setTimeout(() => { kg.className = 'shake'; stats(); }, ms);
@@ -308,6 +313,7 @@ function end(add) {
   add('📤 결과 공유', '단톡방에 박제', shareCard, 'food');
   add('🔄 다시 도전', '', () => location.reload(), 'etc');
 }
+chat(['지코치님', '회원님 오늘부터라고요? 대체 살 언제 빼요?']);
 Stage.init($('stage')).then(render);
 </script>
 </body>
