@@ -2,7 +2,7 @@
 // 대사의 {틀린말|맞는말} 은 맞춤법 오타. 화면에서 탭하면 고쳐진다.
 const START = 60, GOAL = 50, PIG = 100;
 // 밸런스 손잡이: 요요 비율, 하루 기본 증량, 쿵푸 각성 확률
-const BAL = { yoyo: 0.3, drift: 0.2, awaken: 0.4 };
+const BAL = { yoyo: 0.3, drift: 0.1, awaken: 0.4 };
 const r = (rng, a, b) => a + (b - a) * rng();
 const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
 

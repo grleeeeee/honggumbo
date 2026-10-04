@@ -402,7 +402,7 @@ function end(add) {
   if (s.over === 'win') {
     s.anim = 'win'; Stage.show(s);
     $('bubble').innerHTML = typoHtml('해낸 나 너무 {뿌득해|뿌듯해}💗 이제 치킨 먹어도 {돼지|되지}?');
-    $('msg').innerHTML = `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 상위 20%의 의지력!<br>맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회` + badges;
+    $('msg').innerHTML = `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 상위 35%의 의지력!<br>맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회` + badges;
     stageAlert({ kind: 'good', icon: '🏆', title: '다이어트 성공!!', text: `${s.day}일 만에 50kg 달성.<br>홍금보 인생 최초의 사건.` });
   } else {
     Stage.destroy();
