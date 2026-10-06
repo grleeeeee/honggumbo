@@ -115,6 +115,8 @@
   .snaptag{position:absolute;top:56px;left:10px;z-index:11;background:#3b1f12;color:#fff;border-radius:10px;padding:3px 8px;font-size:13px;animation:popin .4s cubic-bezier(.2,1.6,.4,1),fade .5s 2s forwards}
   .mirror{display:flex;gap:10px;margin:4px 0}.mirror>div{flex:1;border-radius:12px;padding:6px 4px;font-size:13px}
   .mirror>div:first-child{background:#ffe4ef}.mirror>div:last-child{background:#eee}.mirror big{display:block;font-size:30px;line-height:1.1}
+  .reveal{margin:8px 0 2px;padding:8px;border-radius:12px;background:linear-gradient(135deg,#fff3c4,#ffd6e0);border:2px dashed #f57f17;font-size:14px;line-height:1.5}
+  .reveal big,.ban big{display:block;font-size:30px;color:#e53935;line-height:1.2}
   .bets{text-align:left;font-size:13.5px;line-height:1.55;margin-top:4px}
   .album{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
   .album figure{margin:0;background:#fff;padding:4px 4px 2px;border-radius:6px;box-shadow:0 2px 6px #0003;transform:rotate(var(--r))}
@@ -230,7 +232,9 @@ const POPS = {
 
 // 무대 안 이벤트 연출: 빨간 깜빡임 + 경고 테이프 + 배너 (좋은 일은 금빛 광선 + 폭죽)
 // 기본은 2.3초 뒤 자동으로 넘어가고 무대를 탭하면 바로 넘어감. hold 면 직접 지울 때까지 유지
-function stageAlert({ kind, icon, title, text, tape = 'WARNING', hold = false, ms = 2300 }) {
+let alertQ = Promise.resolve();
+function stageAlert(o) { const p = alertQ.then(() => showAlert(o)); alertQ = p.catch(() => {}); return p; }
+function showAlert({ kind, icon, title, text, tape = 'WARNING', hold = false, ms = 2300 }) {
   const ov = $('ov'); if (!ov) return Promise.resolve();
   ov.className = 'on ' + kind;
   ov.querySelector('.ic').textContent = icon; ov.querySelector('.tt').textContent = title;
@@ -351,6 +355,7 @@ async function newsAndBoom() {
 async function events() {
   for (const e of s.events.splice(0)) {
     if (e === 'danger') { await newsAndBoom(); continue; }
+    if (e === 'plateau' && s.over === 'win') continue;
     const [kind, icon, title, text, tape] = POPS[e]; await stageAlert({ kind, icon, title, text, tape });
   }
   for (const b of newBadges.splice(0)) await stageAlert({ kind: 'good', icon: '🏅', title: '업적 달성', text: `<b>${b}</b>` });
@@ -465,7 +470,7 @@ async function shareCard() {
   x.fillText(pig ? `${s.day}일 만에 ${s.w.toFixed(0)}kg 달성 🐷` : `${s.day}일 만에 50kg 성공 🎉`, 540, 890);
   x.font = '42px Jua';
   [`"내일부터 다이어트" 선언 ${s.tomorrow}회`, `책 읽기 실패 ${s.books}회 · 셀카 보정 ${s.selfies}회`,
-    `냉장고 습격 ${s.raids}회 · 맞춤법 ${s.fixes}개 교정당함`, `통장 ${s.money.toLocaleString()}원`].forEach((l, i) => x.fillText(l, 540, 970 + i * 58));
+    `냉장고 습격 ${s.raids}회 · 맞춤법 ${s.fixes}개 교정당함`, pig ? `통장 ${s.money.toLocaleString()}원` : `🎁 실제 몸무게: '26년 10월 챌린지 기준 66.x kg!!!`].forEach((l, i) => x.fillText(l, 540, 970 + i * 58));
   x.font = '38px Jua'; x.fillStyle = '#8e24aa';
   for (let i = 0; i < s.badges.length; i += 3) x.fillText(s.badges.slice(i, i + 3).join('  '), 540, 1215 + (i / 3) * 48);
   const won = bets.filter(([, , ok]) => ok(s)).map(([w]) => w);
@@ -522,6 +527,7 @@ async function day(id) {
       const gain = s.w - w0;
       if (!s.over && gain >= 2.5 && s.day - lastInterview >= 6 && Math.random() < 0.15) { await sleep(400); await interview(gain); await sleep(1200); }
     }
+    if (endFx) { const f = endFx; endFx = null; await f(); }
   } finally { if (s.scaleBroken && s.day >= s.brokeDay + 3) { s.scaleBroken = 0; chat(['지코치님', '새 체중계 도착했어요 회원님. 대체 살 언제 빼요?']); } busy = false; render(); }
 }
 
@@ -557,6 +563,10 @@ function render() {
   add('🪞 거울 보기', mirrorDay === s.day ? '오늘은 이미 봄' : '하루 안 지나감', mirror, 'etc');
 }
 
+// 🎁 승리 보상: 홍금보 실제 몸무게
+let endFx = null;
+const REAL_WEIGHT = "'26년 10월 챌린지 기준 <big>66.x kg!!!</big>";
+
 function end(add) {
   $('btns').className = busy ? 'two wait' : 'two'; // 마지막 날 처리가 끝나야 다시 도전/공유를 누를 수 있음
   const badges = (s.badges.length ? `<div class="badges">${s.badges.map(b => `<span class="badge">${b}</span>`).join('')}</div>` : '')
@@ -568,8 +578,16 @@ function end(add) {
   if (first && winners.length) chat([winners[0][0], `내기 이겼다 ㅋㅋㅋ 금보 ${winners[0][0] === '지코치님' ? '회원님 축하해요!' : '빨리 내놔'}`]);
   if (s.over === 'win') {
     s.say = '해낸 나 너무 {뿌득해|뿌듯해}💗 이제 치킨 먹어도 {돼지|되지}?'; $('bubble').innerHTML = typoHtml(s.say);
-    $('msg').innerHTML = `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 상위 35%의 의지력!<br>맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회` + badges;
-    if (first) { s.anim = 'win'; Stage.show(s); stageAlert({ kind: 'good', icon: '🏆', title: '다이어트 성공!!', text: `${s.day}일 만에 50kg 달성.<br>홍금보 인생 최초의 사건.` }); }
+    $('msg').innerHTML = `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 상위 35%의 의지력!<br>맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회`
+      + `<div class="reveal">🎁 <b>승리 보상: 홍금보 실제 몸무게 공개!</b><br>${REAL_WEIGHT}</div>` + badges;
+    if (first) {
+      s.anim = 'win'; Stage.show(s);
+      endFx = async () => { // day() 가 그날 이벤트를 다 보여준 뒤 실행
+        await stageAlert({ kind: 'good', icon: '🏆', title: '다이어트 성공!!', text: `${s.day}일 만에 50kg 달성.<br>홍금보 인생 최초의 사건.` });
+        await stageAlert({ kind: 'good', icon: '🎁', title: '실제 몸무게 공개!', ms: 5000, text: `승리 보상으로 공개합니다<br>${REAL_WEIGHT}` });
+        chat(['소주래인', '게임에서만 50kg ㅋㅋㅋㅋㅋ 현실은 66.x']);
+      };
+    }
   } else {
     if (first) { // 무대는 그대로 두고 그 위에 돼지 사진을 덮음 (다시 하기 때 걷어내기만 하면 됨)
       const pe = document.createElement('div'); pe.id = 'pigend';
@@ -597,7 +615,7 @@ function startRun() {
 function restart() {
   if (busy) return;
   s = Object.assign(newGame(), { badges: [] });
-  newBadges = []; album = []; lastInterview = -99; mirrorDay = 0; endShown = false;
+  newBadges = []; album = []; lastInterview = -99; mirrorDay = 0; endShown = false; endFx = null;
   $('pigend')?.remove(); clearAlert(); miniClose();
   $('kg').className = ''; $('hint').style.display = '';
   startRun();
