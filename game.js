@@ -124,15 +124,22 @@ function act(s, id, rng = Math.random) {
   s.idle = ['boxing', 'running', 'hiking', 'dance'].includes(id) ? 0 : s.idle + 1; // 운동 안 한 연속 일수 (스파링 소집 조건)
   s.streak = s.streak.id === id ? { id, n: s.streak.n + 1 } : { id, n: 1 };
   s.last = id;
-  s.log = [fn(s, rng)];
-  if (s.fail) s.events.push('skip');
+  if (binge && id === 'fast') { // 이틀 연속 단식은 실패: 어제 반동 폭식이 먼저 터짐
+    s.fail = true; s.anim = 'eat'; s.prop = '🛵';
+    s.log = ['단식 2일차 도전... 했지만 손이 먼저 배달앱을 눌렀다.'];
+    talk(s, 'fast', ['오늘도 안 {먹을려고|먹으려고} {햇는대|했는데} ..', '배고파서 {어지러웁다|어지럽다} 오우 쉣'], rng);
+  } else {
+    s.log = [fn(s, rng)];
+    if (s.fail) s.events.push('skip');
   else if (s.awaken) s.events.push('awaken');
   if (s.fail) { // 운동하러 갔다가 포기 → 소파 장면 + 핑계
     s.anim = 'rest'; s.prop = '🛋️';
     talk(s, 'skip', ['운동복 입은 나 너무 {귀여웡|귀여워}.. 오늘은 여기까지 💗', '내일부터 진짜 {운동할께|운동할게} 양심적으로', '발이 {무리가 됬는지|무리가 됐는지} 오늘은 쉬쓰 ..'], rng);
   } else if (s.awaken) talk(s, id, ['오우 쉣 나 방금 쿵푸 {각성한거|각성한 거} 봄?? 💗', '이 몸매 실화냐 (나너무{멋찜|멋짐} 자기애충만모먼트)'], rng);
   else talk(s, id, says, rng);
+  }
   if (!s.fail) s.hunger += HUNGER[id] || 0;
+  if (id === 'fast') s.hunger = Math.min(s.hunger, 95); // 단식한 날 바로 배고픔 폭발은 X (폭식은 내일)
   starving(s);
   if (binge) { s.w += 2; s.events.push('binge'); s.log.push('어제 굶은 반동으로 폭식했다. (+2kg)'); }
   if (s.loss > 0) { const y = s.loss * BAL.yoyo; s.w += y; if (y >= 0.8) s.events.push('yoyo'); if (y >= 0.2) s.log.push('요요가 왔다. (+' + y.toFixed(1) + 'kg)'); }
@@ -178,6 +185,7 @@ function endDay(s, rng = Math.random) {
   }
   s.w += BAL.drift; s.will += 20; s.sta += 5; s.hunger += 8; s.day++;
   if (s.day === 26) s.events.push('season');
+  if (s.last === 'fast') s.hunger = Math.min(s.hunger, 99); // 단식한 날 밤도 폭발 X (반동은 내일 폭식으로)
   starving(s); clamp(s); check(s);
 }
 // 유혹 없는 날도 하루 정리

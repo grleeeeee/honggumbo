@@ -29,11 +29,10 @@
   #hint{position:absolute;bottom:6px;right:10px;font-size:12px;color:#c0392b;z-index:5;background:#fff8;border-radius:8px;padding:0 6px}
   .delta{position:absolute;left:18%;top:48%;font-size:26px;z-index:6;animation:up 1.4s forwards;pointer-events:none;-webkit-text-stroke:1px #fff}
   @keyframes up{from{transform:translateY(0);opacity:1}to{transform:translateY(-60px);opacity:0}}
-  #pig{width:100%;display:block}
+  #pigend{position:absolute;inset:0;z-index:8}#pigend img{width:100%;height:100%;object-fit:cover;object-position:50% 30%;display:block}
 
   #top{flex:none;position:relative;z-index:10;background:#ffe9c7;margin:0 -12px;padding:8px 12px 6px;box-shadow:0 6px 10px -8px #0003}
   #scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;margin:0 -12px;padding:0 12px 24px}
-  body.ended{height:auto;overflow:auto;display:block}body.ended #scroll{overflow:visible}
   .bars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 2px 0;font-size:14px}
   .bars>div{display:flex;align-items:center;gap:4px}.bars .bar{flex:1}
   .bar{height:12px;background:#fff;border-radius:6px;overflow:hidden;box-shadow:inset 0 1px 2px #0002}
@@ -171,7 +170,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let s = Object.assign(newGame(), { badges: [] }), busy = false, newBadges = [], album = [], bets = [], lastInterview = -99;
+let s = Object.assign(newGame(), { badges: [] }), busy = false, newBadges = [], album = [], bets = [], lastInterview = -99, endShown = false;
 const typoHtml = t => t.replace(/\{([^|]+)\|([^}]+)\}/g, '<u class="typo" data-r="$2">$1</u>');
 const KIND = { buldak: 'food', drink: 'food', itaewon: 'food', salad: 'food', boxing: 'sport', running: 'sport', hiking: 'sport', dance: 'sport', conv: 'work', pcbang: 'work' };
 
@@ -210,7 +209,7 @@ const BADGES = [
 
 // 이벤트 팝업 [종류, 아이콘, 제목, 내용, 경고테이프 문구]
 const POPS = {
-  skip: ['info', '🛋️', '운동 포기', '운동복까지 입고 소파에 누웠다.<br>헬스장은 오늘도 기다린다.'],
+  skip: ['info', '🛋️', '운동 포기', '운동하러 나갔다가 바로 포기했다.<br>헬스장은 오늘도 기다린다.'],
   awaken: ['good', '💥', '쿵푸 각성!!', '오늘따라 몸이 날아다닌다. <b>-4kg</b>'],
   binge: ['alert', '🍕', '폭식 반동 경보', '어제 굶은 반동으로 폭식했다. <b>+2kg</b>'],
   yoyo: ['alert', '🪀', '요요 경보', '빠졌던 살이 그대로 돌아왔다.'],
@@ -284,21 +283,23 @@ async function spar() {
 // 🍗 치킨창민 일당 치킨 습격: 6초 동안 떨어지는 치킨을 탭해서 쳐내기. 놓치면 마리당 +0.5kg
 async function chickenBoss() {
   s.done.chicken = true;
-  await stageAlert({ kind: 'alert', tape: '치킨 습격', icon: '🍗', title: '치킨 20마리 습격!', text: '치킨창민 일당이 문을 박차고 들어왔다.<br><b>떨어지는 치킨을 탭해서 쳐내!</b>' });
+  await stageAlert({ kind: 'alert', tape: '치킨 습격', icon: '🍗', title: '치킨 14마리 습격!', text: '치킨창민 일당이 문을 박차고 들어왔다.<br><b>떨어지는 치킨을 탭해서 쳐내!</b>' });
   return new Promise(done => {
     miniOpen('<div class="mt">🍗 치킨 습격!</div><div class="ms" id="cs">놓치면 마리당 +0.5kg</div>');
-    let missed = 0, hit = 0, spawned = 0; const TOTAL = 14;
+    let missed = 0, hit = 0, spawned = 0, resolved = 0, ended = false; const TOTAL = 14;
+    const settle = () => { if (++resolved >= TOTAL) setTimeout(end, 300); }; // 쳐내든 놓치든 전부 처리되면 끝
+    const guard = setTimeout(() => end(), 12000); // 안전장치
     const spawn = () => {
       if (spawned >= TOTAL) return; spawned++;
       const c = document.createElement('div'); c.className = 'chk'; c.textContent = '🍗'; c.style.left = (6 + Math.random() * 76) + '%';
       c.style.setProperty('--d', (1.5 + Math.random() * 0.9) + 's');
-      c.onpointerdown = e => { e.stopPropagation(); if (c.dead) return; c.dead = true; hit++; Sfx.play('punch'); tapFx(e, '쳐냄!'); c.remove(); };
-      c.onanimationend = () => { if (c.dead) return; c.dead = true; missed++; Sfx.play('chomp'); c.remove(); $('cs').textContent = `놓침 ${missed}마리 (+${(missed * 0.5).toFixed(1)}kg)`; if (spawned >= TOTAL && !mini().querySelector('.chk')) setTimeout(end, 300); };
+      c.onpointerdown = e => { e.stopPropagation(); if (c.dead) return; c.dead = true; hit++; Sfx.play('punch'); tapFx(e, '쳐냄!'); c.remove(); settle(); };
+      c.onanimationend = () => { if (c.dead) return; c.dead = true; missed++; Sfx.play('chomp'); c.remove(); $('cs').textContent = `놓침 ${missed}마리 (+${(missed * 0.5).toFixed(1)}kg)`; settle(); };
       mini().append(c);
     };
     const iv = setInterval(() => { spawn(); if (spawned >= TOTAL) clearInterval(iv); }, 430);
     const end = () => {
-      if (!mini().classList.contains('on')) return; clearInterval(iv);
+      if (ended) return; ended = true; clearInterval(iv); clearTimeout(guard);
       s.w += missed * 0.5;
       chat(missed === 0 ? ['치킨창민', '전부 쳐냈다고? 배신자... 🍗'] : ['치킨창민', `${missed}마리 드셨네요 ㅋㅋ 역시 우리 편`]);
       if (missed === 0) { s.will = Math.min(100, s.will + 15); Sfx.play('fanfare'); }
@@ -341,7 +342,7 @@ function after() {
   Sfx.play(SND[s.anim]);
   if (s.w >= 85 && ['eat', 'raid', 'drink'].includes(s.anim)) setTimeout(() => Sfx.play('oink'), 450);
   if (s.w >= 90) Sfx.play('thud');
-  if (s.comment) chat(s.comment);
+  if (s.comment && !s.over) chat(s.comment); // 엔딩 날엔 내기 승자 댓글이 우선
   for (const [name, ok] of BADGES) if (!s.badges.includes(name) && ok(s)) { s.badges.push(name); newBadges.push(name); }
   if (s.over) return;
   const kg = $('kg'), back = ms => setTimeout(() => { kg.className = 'shake'; stats(); }, ms);
@@ -370,7 +371,7 @@ const betLines = done => bets.map(([w, t, ok]) => `${done ? (ok(s) ? '✅' : '�
 const SHAME = { skip: '운동복만 입고 소파행', raid: '새벽 3시 냉장고 앞', starve: '배달 음식 3개 동시 섭취', faint: '체력 방전 후 배달',
   binge: '단식 다음 날 폭식', danger: '90kg 돌파 기념사진', club: '이태원 막춤', selfie: '보정 전 원본', eat: '또 먹음 (85kg+)' };
 async function snapShame() {
-  if (album.length >= 9 || !$('stage')) return;
+  if (album.length >= 9 || s.over) return;
   let key = s.events.find(e => SHAME[e]);
   if (!key && ['club', 'selfie'].includes(s.anim) && Math.random() < 0.6) key = s.anim;
   if (!key && s.anim === 'eat' && s.w >= 85 && Math.random() < 0.3) key = 'eat';
@@ -399,7 +400,7 @@ function interview(gain) {
   return new Promise(done => {
     const b = $('btns'); b.innerHTML = ''; b.className = 'four';
     EXCUSES.forEach(([label, say, rebut]) => b.append(btn(label, '', () => {
-      clearAlert(); s.say = say; $('bubble').innerHTML = typoHtml(say); chat(rebut); Sfx.play('pop'); done();
+      b.classList.add('wait'); clearAlert(); s.say = say; $('bubble').innerHTML = typoHtml(say); chat(rebut); Sfx.play('pop'); done(); // 한 번 고르면 잠금
     }, 'etc')));
   });
 }
@@ -510,8 +511,9 @@ function temptChoice() {
   $('bubble').innerHTML = typoHtml(line);
   return new Promise(done => {
     const b = $('btns'); b.innerHTML = ''; b.className = 'two';
-    b.append(btn('😤 참는다', `의지력 -${cost}${s.hunger >= 70 ? ' (배고픔!)' : ''}`, () => { clearAlert(); done(false); }, 'sport'),
-      btn('😋 먹는다', '+체중', () => { clearAlert(); done(true); }, 'food'));
+    const pick = v => { b.classList.add('wait'); clearAlert(); done(v); }; // 한 번 고르면 잠금
+    b.append(btn('😤 참는다', `의지력 -${cost}${s.hunger >= 70 ? ' (배고픔!)' : ''}`, () => pick(false), 'sport'),
+      btn('😋 먹는다', '+체중', () => pick(true), 'food'));
   });
 }
 
@@ -533,29 +535,43 @@ function end(add) {
     + `<div class="bets"><b>🎲 내기 결과</b><br>${betLines(true)}</div>`
     + (album.length ? `<div style="margin-top:8px"><b>📸 소주래인의 박제 앨범 (${album.length}장)</b></div><div class="album">${album.map((a, i) =>
       `<figure style="--r:${(i % 2 ? 1 : -1) * (1 + i % 3)}deg"><img src="${a.src}"><figcaption>${a.cap}</figcaption></figure>`).join('')}</div>` : '');
+  const first = !endShown; endShown = true; // render 가 여러 번 불려도 연출·효과음은 한 번만
   const winners = bets.filter(([, , ok]) => ok(s));
-  if (winners.length) chat([winners[0][0], `내기 이겼다 ㅋㅋㅋ 금보 ${winners[0][0] === '지코치님' ? '회원님 축하해요!' : '빨리 내놔'}`]);
+  if (first && winners.length) chat([winners[0][0], `내기 이겼다 ㅋㅋㅋ 금보 ${winners[0][0] === '지코치님' ? '회원님 축하해요!' : '빨리 내놔'}`]);
   if (s.over === 'win') {
-    s.anim = 'win'; Stage.show(s);
-    $('bubble').innerHTML = typoHtml('해낸 나 너무 {뿌득해|뿌듯해}💗 이제 치킨 먹어도 {돼지|되지}?');
+    s.say = '해낸 나 너무 {뿌득해|뿌듯해}💗 이제 치킨 먹어도 {돼지|되지}?'; $('bubble').innerHTML = typoHtml(s.say);
     $('msg').innerHTML = `<b>🎉 50kg 달성!</b><br>${s.day}일 만에 해냈다. 상위 35%의 의지력!<br>맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회` + badges;
-    stageAlert({ kind: 'good', icon: '🏆', title: '다이어트 성공!!', text: `${s.day}일 만에 50kg 달성.<br>홍금보 인생 최초의 사건.` });
+    if (first) { s.anim = 'win'; Stage.show(s); stageAlert({ kind: 'good', icon: '🏆', title: '다이어트 성공!!', text: `${s.day}일 만에 50kg 달성.<br>홍금보 인생 최초의 사건.` }); }
   } else {
-    Stage.destroy();
-    $('stage').innerHTML = '<img id="pig" src="img/pig.jpg" alt="돼지엔딩"><div class="tape show"><span>' + '⚠ GAME OVER '.repeat(16) + '</span></div>';
-    $('stage').style.aspectRatio = 'auto';
-    document.body.classList.add('ended'); // 엔딩 사진은 커서 화면 분할 해제
+    if (first) { // 무대는 그대로 두고 그 위에 돼지 사진을 덮음 (다시 하기 때 걷어내기만 하면 됨)
+      const pe = document.createElement('div'); pe.id = 'pigend';
+      pe.innerHTML = '<img src="img/pig.jpg" alt="돼지엔딩"><div class="tape show"><span>' + '⚠ GAME OVER '.repeat(16) + '</span></div>';
+      $('stage').append(pe); Sfx.play('fail'); setTimeout(() => Sfx.play('oink'), 1500);
+    }
     $('msg').innerHTML = `<b>🐷 돼지엔딩</b><br>${s.day}일 만에 ${s.w.toFixed(0)}kg. 홍금보는 이제 쿵푸가 아니라 구르기를 한다.<br>`
       + `통장 ${s.money.toLocaleString()}원 · 맞춤법 ${s.fixes}번 고쳐줌 · 책 읽기 실패 ${s.books}회<br>"내일부터" 선언 ${s.tomorrow}회 · 냉장고 습격 ${s.raids}회` + badges;
-    Sfx.play('fail'); setTimeout(() => Sfx.play('oink'), 1500);
   }
   add('📤 결과 공유', '단톡방에 박제', shareCard, 'food');
-  add('🔄 다시 도전', '', () => location.reload(), 'etc');
+  add('🔄 다시 도전', '', restart, 'etc');
 }
-chat(['지코치님', '회원님 오늘부터라고요? 대체 살 언제 빼요?']);
-bets = makeBets();
-s.log.push(`<div class="bets"><b>🎲 친구들 내기판</b><br>${betLines(false)}</div>`);
-Stage.init($('stage')).then(render);
+
+// 새 판 시작 (새로고침 없이 상태를 전부 초기화: 인앱 브라우저 캐시/스크롤 복원 문제 회피)
+function startRun() {
+  chat(['지코치님', '회원님 오늘부터라고요? 대체 살 언제 빼요?']);
+  bets = makeBets();
+  s.log.push(`<div class="bets"><b>🎲 친구들 내기판</b><br>${betLines(false)}</div>`);
+  $('scroll').scrollTop = 0; scrollTo(0, 0);
+  render();
+}
+function restart() {
+  if (busy) return;
+  s = Object.assign(newGame(), { badges: [] });
+  newBadges = []; album = []; lastInterview = -99; mirrorDay = 0; endShown = false;
+  $('pigend')?.remove(); clearAlert(); miniClose();
+  $('kg').className = ''; $('hint').style.display = '';
+  startRun();
+}
+Stage.init($('stage')).then(startRun);
 </script>
 </body>
 </html>
