@@ -1,16 +1,18 @@
 // 홍금보 키우기 - 순수 로직 (브라우저/node 공용)
 // 대사의 {틀린말|맞는말} 은 맞춤법 오타. 화면에서 탭하면 고쳐진다.
 const START = 60, GOAL = 50, PIG = 100;
-// 밸런스 손잡이: 요요 비율, 하루 기본 증량, 쿵푸 각성 확률
-const BAL = { yoyo: 0.3, drift: 0.1, awaken: 0.4 };
+// 밸런스 손잡이: 요요 비율, 하루 기본 증량, 쿵푸 각성 확률, 정체기 시작 체중·감소배율, 같은 운동 반복 배율, 연속 참기 비용 증가폭, 운동 효과 배율
+const BAL = { yoyo: 0.3, drift: 0, awaken: 0.25, plateau: 55, plateauK: 0.8, repeatK: 0.5, resistStep: 4, workK: 2.3 };
 const r = (rng, a, b) => a + (b - a) * rng();
 const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
+
+const SPORT = ['boxing', 'running', 'hiking', 'dance'];
 
 function workout(s, g, lo, hi, sta, will, ok) {
   if (s.will < 35 || s.sta < 30) { s.w += 0.5; s.fail = true; return '운동복까지 입었는데 소파에 누웠다. (+0.5kg)'; }
   s.sta -= sta; s.will -= will;
-  if (g() < BAL.awaken) { s.w -= 4; s.awaken = true; return '💥 쿵푸 각성! 오늘따라 몸이 날아다닌다. (-4kg)'; }
-  s.w -= r(g, lo, hi); return ok;
+  if (g() < BAL.awaken * (s.repeat ? 0.5 : 1)) { s.w -= 4; s.awaken = true; return '💥 쿵푸 각성! 오늘따라 몸이 날아다닌다. (-4kg)'; }
+  s.w -= r(g, lo, hi) * BAL.workK; return ok;
 }
 
 // id: [버튼, 설명, 애니메이션, 소품, 대사들, 적용 함수]
@@ -121,15 +123,23 @@ function act(s, id, rng = Math.random) {
   s.anim = anim; s.prop = prop; s.fail = s.awaken = false; s.events = [];
   const binge = s.binge; s.binge = false; // 어제 단식했으면 오늘 폭식 (오늘 단식은 내일 터짐)
   s.cnt[id] = (s.cnt[id] || 0) + 1;
-  s.idle = ['boxing', 'running', 'hiking', 'dance'].includes(id) ? 0 : s.idle + 1; // 운동 안 한 연속 일수 (스파링 소집 조건)
+  s.idle = SPORT.includes(id) ? 0 : s.idle + 1; // 운동 안 한 연속 일수 (스파링 소집 조건)
   s.streak = s.streak.id === id ? { id, n: s.streak.n + 1 } : { id, n: 1 };
+  s.repeat = s.last === id; // 같은 행동 연속 (운동이면 몸이 적응)
   s.last = id;
   if (binge && id === 'fast') { // 이틀 연속 단식은 실패: 어제 반동 폭식이 먼저 터짐
     s.fail = true; s.anim = 'eat'; s.prop = '🛵';
     s.log = ['단식 2일차 도전... 했지만 손이 먼저 배달앱을 눌렀다.'];
     talk(s, 'fast', ['오늘도 안 {먹을려고|먹으려고} {햇는대|했는데} ..', '배고파서 {어지러웁다|어지럽다} 오우 쉣'], rng);
   } else {
+    const w0 = s.w;
     s.log = [fn(s, rng)];
+    if (s.w < w0) { // 빠진 양 보정: 같은 운동 반복이면 repeatK배, 정체기(plateau 이하)면 plateauK배
+      let k = 1;
+      if (s.repeat && SPORT.includes(id)) { k *= BAL.repeatK; s.log.push('같은 운동 반복이라 몸이 적응했다. (효과 절반)'); }
+      if (w0 <= BAL.plateau) { k *= BAL.plateauK; if (!s.plateauSeen) { s.plateauSeen = true; s.events.push('plateau'); } }
+      s.w = w0 - (w0 - s.w) * k;
+    }
     if (s.fail) s.events.push('skip');
   else if (s.awaken) s.events.push('awaken');
   if (s.fail) { // 운동하러 갔다가 포기 → 소파 장면 + 핑계
@@ -160,10 +170,10 @@ function temptation(s, eat, rng = Math.random) {
   s.events = [];
   const cost = resistCost(s);
   if (!eat && s.will >= cost) {
-    s.will -= cost; s.log = ['꾹 참았다. (의지력 -' + cost + ')'];
+    s.will -= cost; s.resists = (s.resists || 0) + 1; s.log = ['꾹 참았다. (의지력 -' + cost + ')'];
     s.anim = 'sad'; s.prop = '😤'; talk(s, 'resist', ['참은 나 너무 {뿌득해|뿌듯해}💗', '오우 쉣 진짜 {참았슴|참았음} 칭찬 {해조|해줘} 💗'], rng);
   } else {
-    s.w += r(rng, 1, 3); s.hunger -= 40;
+    s.w += r(rng, 1, 3); s.hunger -= 40; s.resists = 0;
     s.log = [eat ? '에라 모르겠다, 먹었다.' : '참으려 했지만 의지력이 바닥나 먹고 말았다.'];
     s.anim = 'eat'; s.prop = s.tempt ? [...s.tempt[0]][0] : '🍴';
     talk(s, 'eat', ['역시 {먹는개|먹는 게} 남는 거쓰 💗', '내일부터 진짜 {할께|할게} 양심적으로', '오우 쉣 배불러 {죽겟다|죽겠다} ..'], rng);
@@ -172,8 +182,8 @@ function temptation(s, eat, rng = Math.random) {
   return s;
 }
 
-// 배고프면 참기가 더 힘들다
-const resistCost = s => s.hunger >= 70 ? 35 : 20;
+// 배고프면 참기가 더 힘들고, 연속으로 참을수록 점점 더 힘들다 (한 번 먹으면 초기화)
+const resistCost = s => (s.hunger >= 70 ? 35 : 20) + (s.resists || 0) * BAL.resistStep;
 
 function endDay(s, rng = Math.random) {
   if (s.day > 25) s.w += 3; // 연말 회식 시즌: 시간 끌면 반드시 찐다

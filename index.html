@@ -160,7 +160,7 @@
   <h3>🏃 행동 버튼 색깔</h3>
   <p>🟠 먹기: 살찌지만 의지력 회복<br>🟢 운동: 살 빠짐, 가끔 <b>쿵푸 각성 -4kg!</b><br>🔵 알바: 돈 벌지만 폐기·라면 때문에 조금 찜<br>🟣 기타: 쉬기·책 읽기·셀카·단식</p>
   <h3>⚠️ 함정</h3>
-  <p>살 빠진 다음 날엔 <b>요요</b>가 일부 돌아옴. 단식하면 다음 날 <b>폭식</b>.<br>쉬거나 책 읽다 잠든 밤엔 가끔 <b>냉장고 습격</b>...</p>
+  <p>살 빠진 다음 날엔 <b>요요</b>가 일부 돌아옴. 단식하면 다음 날 <b>폭식</b>.<br>쉬거나 책 읽다 잠든 밤엔 가끔 <b>냉장고 습격</b>...<br>💪 <b>같은 운동 연속</b>이면 몸이 적응해서 효과 절반 → 운동은 섞어서!<br>😤 유혹을 <b>연속으로 참을수록</b> 참기 비용 +4씩 (한 번 먹으면 초기화)<br>🧱 <b>55kg 아래는 정체기</b>: 빠지는 양 -20%</p>
   <h3>✏️ 맞춤법 고쳐주기</h3>
   <p>말풍선에 <b>빨간 물결 밑줄</b> = 금보 오타. 탭하면 고쳐주고 의지력 +3</p>
   <h3>🪞 거울 보기</h3>
@@ -168,7 +168,7 @@
   <h3>🎲 내기 · 📸 박제 · 🏅 업적</h3>
   <p>시작할 때 친구들이 내기를 걸고, 굴욕 순간은 소주래인이 박제함. 엔딩에서 다 공개되고 <b>결과 공유</b>로 단톡방에 올릴 수 있어</p>
   <h3>💡 팁</h3>
-  <p>배고픔 70 넘기 전에 샐러드 · 의지력 35 아래면 운동 말고 셀카나 맞춤법으로 채우기 · 체력 30 아래면 쉬기</p>
+  <p>운동은 복싱·러닝·등산·춤 돌려가며 · 참기 비용이 너무 비싸지면 한 번 먹어서 초기화 · 배고픔 70 넘기 전에 샐러드 · 의지력 35 아래면 셀카나 맞춤법으로 채우기 · 체력 30 아래면 쉬기</p>
 </div><div class="ft"><button id="helpok" class="sport" style="font-size:17px;padding:10px">알겠어, 시작!</button></div></dialog>
 <script src="game.js"></script>
 <script src="stage.js"></script>
@@ -224,6 +224,7 @@ const POPS = {
   starve: ['alert', '🍔', '배고픔 폭발', '눈 떠보니 배달 음식 3개를 먹고 있었다. <b>+3kg</b>'],
   raid: ['alert', '🚨', '긴급 속보', '새벽 3시 냉장고 습격 사건 발생.<br>용의자: 홍금보 (입가에 양념 묻음) <b>+2kg</b>', '속보 BREAKING'],
   season: ['alert', '🍻', '연말 회식 시즌 돌입', '오늘부터 매일 <b>+3kg</b>.<br>빨리 끝내야 한다!'],
+  plateau: ['alert', '🧱', '정체기 돌입', '55kg 아래부터는 살이 잘 안 빠진다.<br>빠지는 양 <b>-20%</b>. 여기서부터 진짜 싸움', '정체기'],
   danger: ['alert', '🐷', '돼지 임계점 돌파', '90kg 돌파.<br>체중계가 비명을 지르기 시작했다.', 'DANGER'],
 };
 
@@ -278,10 +279,10 @@ async function spar() {
       boss().textContent = win ? '😵' : '😏'; if (!win) $('stage').classList.add('ko');
       setTimeout(() => $('stage').classList.remove('ko'), 700);
       Sfx.play(win ? 'fanfare' : 'fail');
-      if (win) { s.w -= 3; s.will = Math.min(100, s.will + 10); chat(['관장님', '...오늘은 인정한다. 내일도 와라']); window.confetti?.({ particleCount: 100, spread: 80, zIndex: 60 }); }
+      if (win) { s.w -= 2; s.will = Math.min(100, s.will + 10); chat(['관장님', '...오늘은 인정한다. 내일도 와라']); window.confetti?.({ particleCount: 100, spread: 80, zIndex: 60 }); }
       else { s.will = Math.max(0, s.will - 30); s.w += 0.5; chat(['관장님', '훅이 솜방망이네? KO 완료 ㅋㅋ']); }
       setTimeout(async () => { miniClose(); stats(); await stageAlert({ kind: win ? 'good' : 'alert', icon: win ? '🏆' : '💫', title: win ? '관장님 KO승!' : '금보 KO패',
-        text: win ? '<b>-3kg</b> · 의지력 +10' : '의지력 <b>-30</b> · +0.5kg' }); done(); }, 900);
+        text: win ? '<b>-2kg</b> · 의지력 +10' : '의지력 <b>-30</b> · +0.5kg' }); done(); }, 900);
     };
     mini().querySelectorAll('.glove').forEach(g => {
       g.addEventListener('dblclick', e => e.preventDefault());
@@ -539,7 +540,7 @@ function temptChoice() {
   return new Promise(done => {
     const b = $('btns'); b.innerHTML = ''; b.className = 'two';
     const pick = v => { b.classList.add('wait'); clearAlert(); done(v); }; // 한 번 고르면 잠금
-    b.append(btn('😤 참는다', `의지력 -${cost}${s.hunger >= 70 ? ' (배고픔!)' : ''}`, () => pick(false), 'sport'),
+    b.append(btn('😤 참는다', `의지력 -${cost}${s.hunger >= 70 ? ' 배고픔!' : ''}${s.resists ? ` (연속 ${s.resists + 1}번째)` : ''}`, () => pick(false), 'sport'),
       btn('😋 먹는다', '+체중', () => pick(true), 'food'));
   });
 }
