@@ -76,6 +76,16 @@
   #ov.alert .tt{color:#e53935}#ov.good .tt{color:#f57f17}
   .ban .tx{font-size:14px;line-height:1.45}.ban .tx b{color:#e53935;font-weight:400}.ban .tx small{display:block;color:#aaa;font-size:11px;margin-top:2px}
   #btns.wait{opacity:.45;pointer-events:none}
+  #help{background:none;border:0;font-size:19px;width:auto;box-shadow:none;padding:0 8px 0 0}
+  /* 도움말 */
+  #helpbox{border:0;border-radius:20px;width:92vw;max-width:400px;max-height:84vh;max-height:84dvh;padding:0;font-family:inherit;color:#3b2a20;box-shadow:0 10px 0 #0003}
+  #helpbox::backdrop{background:#000a}
+  #helpbox:focus,#helpbox *:focus{outline:none}
+  #helpbox .in{max-height:calc(84dvh - 64px);overflow-y:auto;padding:16px 16px 4px;font-size:14px;line-height:1.55}
+  #helpbox h2{margin:0 0 8px;font-weight:400;color:#e85d75;text-align:center;font-size:22px}
+  #helpbox h3{margin:12px 0 2px;font-weight:400;font-size:16px;color:#8e24aa}
+  #helpbox p{margin:0}#helpbox b{font-weight:400;color:#e53935}
+  #helpbox .ft{padding:8px 16px 14px}
   #btns.four{grid-template-columns:1fr 1fr}#btns.four button{font-size:15px;padding:9px 4px}
   .flash{position:absolute;inset:0;background:#fff;z-index:11;animation:flash2 .5s forwards;pointer-events:none}
   @keyframes flash2{from{opacity:1}to{opacity:0}}
@@ -97,7 +107,7 @@
 </head>
 <body>
 <div id="top">
-<header><h1>🥋 홍금보 키우기</h1><div style="display:flex;align-items:center"><button id="mute"></button><div id="kg"></div></div></header>
+<header><h1>🥋 홍금보 키우기</h1><div style="display:flex;align-items:center"><button id="mute"></button><button id="help" aria-label="도움말">❓</button><div id="kg"></div></div></header>
 <div class="chips"><span class="chip">🎯 50kg</span><span class="chip">📅 <span id="day"></span>일차</span><span class="chip">💰 <span id="money"></span>원</span><span class="chip">✏️ <span id="fixes"></span></span></div>
 <div id="stage">
   <div id="bubble"></div>
@@ -113,6 +123,29 @@
 <div id="msg"></div>
 <div id="btns"></div>
 </div>
+<dialog id="helpbox"><div class="in">
+  <h2>🥋 홍금보 키우기 도움말</h2>
+  <h3>🎯 목표</h3>
+  <p>60kg 홍금보를 <b>50kg</b>까지 빼면 성공 🎉, <b>100kg</b> 찍으면 돼지엔딩 🐷<br>25일이 넘으면 연말 회식 시즌이라 <b>매일 +3kg</b>. 빨리 끝내야 해!</p>
+  <h3>📅 하루 흐름</h3>
+  <p>① 아래 버튼에서 행동 하나 고르기<br>② 저녁에 친구들 유혹이 오면 <b>참는다 / 먹는다</b> 선택<br>③ 밤에 가끔 사건이 터짐 (무대를 탭하면 빨리 넘어가)</p>
+  <h3>📊 게이지</h3>
+  <p>💪 <b>의지력</b>: 35 미만이면 운동하러 가도 소파행. 유혹 참으면 -20 (배고프면 -35)<br>
+  ⚡ <b>체력</b>: 운동하면 줄고 쉬면 회복. 0이 되면 쓰러져서 배달 +1kg<br>
+  🍔 <b>배고픔</b>: 매일 차고, 운동하면 더 참. 100이 되면 강제 폭식 +3kg</p>
+  <h3>🏃 행동 버튼 색깔</h3>
+  <p>🟠 먹기: 살찌지만 의지력 회복<br>🟢 운동: 살 빠짐, 가끔 <b>쿵푸 각성 -4kg!</b><br>🔵 알바: 돈 벌지만 폐기·라면 때문에 조금 찜<br>🟣 기타: 쉬기·책 읽기·셀카·단식</p>
+  <h3>⚠️ 함정</h3>
+  <p>살 빠진 다음 날엔 <b>요요</b>가 일부 돌아옴. 단식하면 다음 날 <b>폭식</b>.<br>쉬거나 책 읽다 잠든 밤엔 가끔 <b>냉장고 습격</b>...</p>
+  <h3>✏️ 맞춤법 고쳐주기</h3>
+  <p>말풍선에 <b>빨간 물결 밑줄</b> = 금보 오타. 탭하면 고쳐주고 의지력 +3</p>
+  <h3>🪞 거울 보기</h3>
+  <p>하루 한 번, 하루가 안 지나가는 공짜 행동. 금보 생각 vs 체중계 현실</p>
+  <h3>🎲 내기 · 📸 박제 · 🏅 업적</h3>
+  <p>시작할 때 친구들이 내기를 걸고, 굴욕 순간은 소주래인이 박제함. 엔딩에서 다 공개되고 <b>결과 공유</b>로 단톡방에 올릴 수 있어</p>
+  <h3>💡 팁</h3>
+  <p>배고픔 70 넘기 전에 샐러드 · 의지력 35 아래면 운동 말고 셀카나 맞춤법으로 채우기 · 체력 30 아래면 쉬기</p>
+</div><div class="ft"><button id="helpok" class="sport" style="font-size:17px;padding:10px">알겠어, 시작!</button></div></dialog>
 <script src="game.js"></script>
 <script src="stage.js"></script>
 <script src="sfx.js"></script>
@@ -331,6 +364,11 @@ async function shareCard() {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'honggumbo.png'; a.click();
 }
 $('mute').textContent = Sfx.muted ? '🔇' : '🔊';
+// ❓ 도움말 (첫 방문엔 자동으로 한 번)
+const openHelp = () => $('helpbox').showModal ? $('helpbox').showModal() : $('helpbox').setAttribute('open', '');
+$('help').onclick = openHelp;
+$('helpok').onclick = () => $('helpbox').close ? $('helpbox').close() : $('helpbox').removeAttribute('open');
+if (!localStorage.getItem('hkb-help')) { localStorage.setItem('hkb-help', '1'); openHelp(); }
 $('mute').onclick = () => { $('mute').textContent = Sfx.toggle() ? '🔇' : '🔊'; };
 
 function delta(d) {
