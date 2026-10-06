@@ -90,7 +90,7 @@ const TEMPTATIONS = [
 ];
 
 const newGame = () => ({ day: 1, w: START, will: 70, sta: 100, hunger: 10, money: 0, loss: 0, binge: false, books: 0, fixes: 0,
-  selfies: 0, raids: 0, events: [], danger: false, tomorrow: 0, cnt: {}, streak: { id: '', n: 0 }, last: '', comment: null, over: null, log: ['🎯 목표 50kg! 홍금보의 다이어트가 시작됐다.'], say: '오늘부터 다이어트 {시작함니다|시작합니다} 💗 (진짜임)', anim: 'idle', prop: '' });
+  selfies: 0, raids: 0, events: [], danger: false, idle: 0, done: {}, scaleBroken: 0, tomorrow: 0, cnt: {}, streak: { id: '', n: 0 }, last: '', comment: null, over: null, log: ['🎯 목표 50kg! 홍금보의 다이어트가 시작됐다.'], say: '오늘부터 다이어트 {시작함니다|시작합니다} 💗 (진짜임)', anim: 'idle', prop: '' });
 
 const lim = v => Math.max(0, Math.min(100, v));
 const clamp = s => { s.will = lim(s.will); s.sta = lim(s.sta); s.hunger = lim(s.hunger); };
@@ -121,6 +121,7 @@ function act(s, id, rng = Math.random) {
   s.anim = anim; s.prop = prop; s.fail = s.awaken = false; s.events = [];
   const binge = s.binge; s.binge = false; // 어제 단식했으면 오늘 폭식 (오늘 단식은 내일 터짐)
   s.cnt[id] = (s.cnt[id] || 0) + 1;
+  s.idle = ['boxing', 'running', 'hiking', 'dance'].includes(id) ? 0 : s.idle + 1; // 운동 안 한 연속 일수 (스파링 소집 조건)
   s.streak = s.streak.id === id ? { id, n: s.streak.n + 1 } : { id, n: 1 };
   s.last = id;
   s.log = [fn(s, rng)];

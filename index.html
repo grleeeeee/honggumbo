@@ -76,6 +76,23 @@
   #ov.alert .tt{color:#e53935}#ov.good .tt{color:#f57f17}
   .ban .tx{font-size:14px;line-height:1.45}.ban .tx b{color:#e53935;font-weight:400}.ban .tx small{display:block;color:#aaa;font-size:11px;margin-top:2px}
   #btns.wait{opacity:.45;pointer-events:none}
+  /* 특별 이벤트 미니게임 */
+  #mini{position:absolute;inset:0;z-index:12;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#000b;border-radius:18px;user-select:none;-webkit-user-select:none;touch-action:manipulation;overflow:hidden}
+  #mini.on{display:flex}
+  #mini .mt{font-size:22px;color:#ffd600;text-shadow:0 2px 0 #000}
+  #mini .ms{font-size:13px;color:#fff}
+  #mini .mb{width:78%;height:16px;background:#fff3;border-radius:8px;overflow:hidden;border:2px solid #fff}
+  #mini .mb i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff5252,#ffd600);transition:width .1s}
+  #mini .mb.t i{background:linear-gradient(90deg,#26a69a,#80cbc4);transition:width .1s linear}
+  #mini .big{font-size:76px;line-height:1;transition:transform .05s}
+  #mini .big.hit{transform:scale(.8) rotate(-8deg)}
+  #mini .pop{position:absolute;font-size:26px;pointer-events:none;animation:up 0.7s forwards;color:#fff;text-shadow:0 2px 0 #000}
+  .chk{position:absolute;top:-50px;font-size:42px;animation:fall var(--d,2s) linear forwards;cursor:pointer}
+  @keyframes fall{to{transform:translateY(360px) rotate(240deg)}}
+  .ko{animation:kos .6s}
+  @keyframes kos{0%,100%{transform:none}25%{transform:translateX(-12px) rotate(-4deg)}75%{transform:translateX(12px) rotate(4deg)}}
+  .boom{position:absolute;inset:0;z-index:13;display:grid;place-items:center;font-size:130px;pointer-events:none;animation:boomIn 1.4s forwards;background:radial-gradient(#fff,#ffb30055 45%,transparent 70%)}
+  @keyframes boomIn{0%{transform:scale(.1);opacity:1}40%{transform:scale(1.3);opacity:1}100%{transform:scale(2);opacity:0}}
   #help{background:none;border:0;font-size:19px;width:auto;box-shadow:none;padding:0 8px 0 0}
   /* 도움말 */
   #helpbox{border:0;border-radius:20px;width:92vw;max-width:400px;max-height:84vh;max-height:84dvh;padding:0;font-family:inherit;color:#3b2a20;box-shadow:0 10px 0 #0003}
@@ -111,6 +128,7 @@
 <div class="chips"><span class="chip">🎯 50kg</span><span class="chip">📅 <span id="day"></span>일차</span><span class="chip">💰 <span id="money"></span>원</span><span class="chip">✏️ <span id="fixes"></span></span></div>
 <div id="stage">
   <div id="bubble"></div>
+  <div id="mini"></div>
   <div id="ov"><div class="tape"><span></span></div><div class="ban"><div class="ic"></div><div class="tt"></div><div class="tx"></div></div></div>
   <div id="hint">✏️ 틀린 맞춤법을 눌러서 고쳐줘</div>
 </div>
@@ -166,7 +184,7 @@ const fixTypo = e => {
 $('bubble').onclick = fixTypo;
 
 function stats() {
-  $('kg').innerHTML = s.w.toFixed(1) + '<small>kg</small>';
+  $('kg').innerHTML = s.scaleBroken > 0 ? '<small>💥 체중계 고장</small> ???' : s.w.toFixed(1) + '<small>kg</small>';
   $('day').textContent = s.day;
   $('money').textContent = s.money.toLocaleString();
   $('fixes').textContent = s.fixes;
@@ -227,8 +245,86 @@ function stageAlert({ kind, icon, title, text, tape = 'WARNING', hold = false, m
 }
 const clearAlert = () => { if ($('ov')) $('ov').className = ''; };
 
+// ───────── 특별 이벤트 (과격 버전) ─────────
+const mini = () => $('mini');
+const miniOpen = html => { mini().innerHTML = html; mini().classList.add('on'); };
+const miniClose = () => { mini().classList.remove('on'); mini().innerHTML = ''; };
+const tapFx = (e, txt) => {
+  const r = mini().getBoundingClientRect(), p = document.createElement('div'); p.className = 'pop'; p.textContent = txt;
+  p.style.left = (e.clientX - r.left - 14) + 'px'; p.style.top = (e.clientY - r.top - 20) + 'px'; mini().append(p); setTimeout(() => p.remove(), 700);
+};
+
+// 🥊 관장님 스파링 강제 소집 (운동 3일 연속 안 하면): 6초 안에 연타 20번
+async function spar() {
+  s.done.spar = true; s.idle = 0;
+  await stageAlert({ kind: 'alert', tape: '관장님 출동', icon: '🥊', title: '스파링 강제 소집!', text: '관장님: "3일째 노쇼? 링 위로 올라와."<br><b>6초 안에 펀치 20번!</b>' });
+  return new Promise(done => {
+    miniOpen(`<div class="mt">🥊 관장님 스파링</div><div class="ms">화면을 미친듯이 연타!</div>
+      <div class="mb"><i id="hp"></i></div><div class="big" id="boss">😤</div><div class="mb t"><i id="tm"></i></div>`);
+    let hit = 0, over = false; const NEED = 20, MS = 6000, t0 = performance.now();
+    const fin = win => {
+      if (over) return; over = true; clearInterval(iv); mini().onpointerdown = null;
+      $('boss').textContent = win ? '😵' : '😏'; if (!win) $('stage').classList.add('ko');
+      setTimeout(() => $('stage').classList.remove('ko'), 700);
+      Sfx.play(win ? 'fanfare' : 'fail');
+      if (win) { s.w -= 3; s.will = Math.min(100, s.will + 10); chat(['관장님', '...오늘은 인정한다. 내일도 와라']); window.confetti?.({ particleCount: 100, spread: 80, zIndex: 60 }); }
+      else { s.will = Math.max(0, s.will - 30); s.w += 0.5; chat(['관장님', '펀치가 솜방망이네? KO 완료 ㅋㅋ']); }
+      setTimeout(async () => { miniClose(); stats(); await stageAlert({ kind: win ? 'good' : 'alert', icon: win ? '🏆' : '💫', title: win ? '관장님 KO승!' : '금보 KO패',
+        text: win ? '<b>-3kg</b> · 의지력 +10' : '의지력 <b>-30</b> · +0.5kg' }); done(); }, 900);
+    };
+    mini().onpointerdown = e => {
+      if (over) return; hit++; Sfx.play('punch'); tapFx(e, ['펀치!', '퍽!', '콰앙!'][hit % 3]);
+      $('boss').classList.add('hit'); setTimeout(() => $('boss')?.classList.remove('hit'), 60);
+      $('hp').style.width = Math.max(0, 100 - hit / NEED * 100) + '%'; if (hit >= NEED) fin(true);
+    };
+    const iv = setInterval(() => { const left = 1 - (performance.now() - t0) / MS; $('tm').style.width = Math.max(0, left * 100) + '%'; if (left <= 0) fin(false); }, 60);
+  });
+}
+
+// 🍗 치킨창민 일당 치킨 습격: 6초 동안 떨어지는 치킨을 탭해서 쳐내기. 놓치면 마리당 +0.5kg
+async function chickenBoss() {
+  s.done.chicken = true;
+  await stageAlert({ kind: 'alert', tape: '치킨 습격', icon: '🍗', title: '치킨 20마리 습격!', text: '치킨창민 일당이 문을 박차고 들어왔다.<br><b>떨어지는 치킨을 탭해서 쳐내!</b>' });
+  return new Promise(done => {
+    miniOpen('<div class="mt">🍗 치킨 습격!</div><div class="ms" id="cs">놓치면 마리당 +0.5kg</div>');
+    let missed = 0, hit = 0, spawned = 0; const TOTAL = 14;
+    const spawn = () => {
+      if (spawned >= TOTAL) return; spawned++;
+      const c = document.createElement('div'); c.className = 'chk'; c.textContent = '🍗'; c.style.left = (6 + Math.random() * 76) + '%';
+      c.style.setProperty('--d', (1.5 + Math.random() * 0.9) + 's');
+      c.onpointerdown = e => { e.stopPropagation(); if (c.dead) return; c.dead = true; hit++; Sfx.play('punch'); tapFx(e, '쳐냄!'); c.remove(); };
+      c.onanimationend = () => { if (c.dead) return; c.dead = true; missed++; Sfx.play('chomp'); c.remove(); $('cs').textContent = `놓침 ${missed}마리 (+${(missed * 0.5).toFixed(1)}kg)`; if (spawned >= TOTAL && !mini().querySelector('.chk')) setTimeout(end, 300); };
+      mini().append(c);
+    };
+    const iv = setInterval(() => { spawn(); if (spawned >= TOTAL) clearInterval(iv); }, 430);
+    const end = () => {
+      if (!mini().classList.contains('on')) return; clearInterval(iv);
+      s.w += missed * 0.5;
+      chat(missed === 0 ? ['치킨창민', '전부 쳐냈다고? 배신자... 🍗'] : ['치킨창민', `${missed}마리 드셨네요 ㅋㅋ 역시 우리 편`]);
+      if (missed === 0) { s.will = Math.min(100, s.will + 15); Sfx.play('fanfare'); }
+      setTimeout(async () => { miniClose(); stats();
+        await stageAlert({ kind: missed === 0 ? 'good' : 'alert', icon: missed === 0 ? '🛡️' : '🍗', title: missed === 0 ? '치킨 완전 방어!' : `치킨 ${missed}마리 섭취`,
+          text: missed === 0 ? '의지력 <b>+15</b>' : `<b>+${(missed * 0.5).toFixed(1)}kg</b>` }); done(); }, 600);
+    };
+  });
+}
+
+// 📺 90kg 돌파: 뉴스 속보 → 체중계 폭발 (3일간 체중이 ???)
+async function newsAndBoom() {
+  await stageAlert({ kind: 'alert', tape: 'BREAKING NEWS', icon: '📺', title: '뉴스 속보', ms: 3600,
+    text: `홍금보 씨, 체중 <b>${s.w.toFixed(0)}kg</b> 돌파<br>시민 인터뷰: <b>소주래인</b> "예상했음 ㅋㅋㅋ"<br>지코치님 "대체 살 언제 빼요..."` });
+  const b = document.createElement('div'); b.className = 'boom'; b.textContent = '💥'; $('stage').append(b); $('stage').classList.add('ko');
+  Sfx.play('thud'); setTimeout(() => Sfx.play('chomp'), 150); navigator.vibrate?.([200, 80, 200, 80, 300]);
+  window.confetti?.({ particleCount: 90, spread: 360, startVelocity: 35, ticks: 60, zIndex: 60, colors: ['#ffb300', '#ff5722', '#fff'] });
+  s.scaleBroken = 3; s.brokeDay = s.day; stats(); setTimeout(() => { b.remove(); $('stage').classList.remove('ko'); }, 1500);
+  await stageAlert({ kind: 'alert', tape: '체중계 폭발', icon: '⚖️', title: '체중계 폭발!', text: '90kg 돌파 기념으로 체중계가 사망했다.<br><b>3일간 체중 확인 불가</b> (택배 오는 중)' });
+}
+
 async function events() {
-  for (const e of s.events.splice(0)) { const [kind, icon, title, text, tape] = POPS[e]; await stageAlert({ kind, icon, title, text, tape }); }
+  for (const e of s.events.splice(0)) {
+    if (e === 'danger') { await newsAndBoom(); continue; }
+    const [kind, icon, title, text, tape] = POPS[e]; await stageAlert({ kind, icon, title, text, tape });
+  }
   for (const b of newBadges.splice(0)) await stageAlert({ kind: 'good', icon: '🏅', title: '업적 달성', text: `<b>${b}</b>` });
 }
 
@@ -250,7 +346,7 @@ function after() {
   if (s.over) return;
   const kg = $('kg'), back = ms => setTimeout(() => { kg.className = 'shake'; stats(); }, ms);
   if (s.anim === 'selfie') { kg.className = 'fake'; kg.innerHTML = '48.0<small>kg ✨</small>'; back(1600); }
-  else if (s.w >= 90) { kg.className = 'err'; kg.textContent = '⚠️ 1인용 체중계입니다'; back(1300); }
+  else if (s.w >= 90 && !s.scaleBroken) { kg.className = 'err'; kg.textContent = '⚠️ 1인용 체중계입니다'; back(1300); }
 }
 
 // 🎲 친구들 내기판: 시작할 때 4명이 랜덤으로 걸고, 엔딩에서 판정
@@ -319,7 +415,7 @@ async function mirror() {
   s.say = MIRROR_SAY[Math.floor(Math.random() * MIRROR_SAY.length)]; $('bubble').innerHTML = typoHtml(s.say); Sfx.play('pop');
   await stageAlert({ kind: 'info', icon: '🪞', title: '거울 vs 체중계', ms: 3500, text: `<div class="mirror">
     <div>💭 금보 생각<big>48kg</big>나너무귀여웡💗</div>
-    <div>⚖️ 체중계<big>${s.w.toFixed(1)}kg</big>${s.w >= 90 ? '⚠️ 1인용입니다' : `차이 <b>${(s.w - 48).toFixed(1)}kg</b>`}</div></div>` });
+    <div>⚖️ 체중계<big>${s.scaleBroken ? '???' : s.w.toFixed(1) + 'kg'}</big>${s.scaleBroken ? '💥 폭발해서 모름' : s.w >= 90 ? '⚠️ 1인용입니다' : `차이 <b>${(s.w - 48).toFixed(1)}kg</b>`}</div></div>` });
   chat(MIRROR_FRIENDS[Math.floor(Math.random() * MIRROR_FRIENDS.length)]);
   busy = false; render();
 }
@@ -372,7 +468,7 @@ if (!localStorage.getItem('hkb-help')) { localStorage.setItem('hkb-help', '1'); 
 $('mute').onclick = () => { $('mute').textContent = Sfx.toggle() ? '🔇' : '🔊'; };
 
 function delta(d) {
-  if (Math.abs(d) < 0.05 || !$('stage')) return;
+  if (Math.abs(d) < 0.05 || !$('stage') || s.scaleBroken) return;
   const el = document.createElement('div'); el.className = 'delta';
   el.textContent = (d > 0 ? '+' : '') + d.toFixed(1) + 'kg'; el.style.color = d > 0 ? '#e53935' : '#26a69a';
   $('stage').append(el); setTimeout(() => el.remove(), 1500);
@@ -392,10 +488,12 @@ async function day(id) {
       else { s.events = []; w = s.w; skipTemptation(s); }
       show(w); $('btns').classList.add('wait');
       await sleep(500); await snapShame(); await events();
+      if (!s.over && s.idle >= 3 && !s.done.spar) { await sleep(400); await spar(); }
+      else if (!s.over && s.day >= 10 && !s.done.chicken && Math.random() < 0.25) { await sleep(400); await chickenBoss(); }
       const gain = s.w - w0;
       if (!s.over && gain >= 2.5 && s.day - lastInterview >= 6 && Math.random() < 0.15) { await sleep(400); await interview(gain); await sleep(1200); }
     }
-  } finally { busy = false; render(); }
+  } finally { if (s.scaleBroken && s.day >= s.brokeDay + 3) { s.scaleBroken = 0; chat(['지코치님', '새 체중계 도착했어요 회원님. 대체 살 언제 빼요?']); } busy = false; render(); }
 }
 
 const btn = (label, sub, fn, cls = '') => {
