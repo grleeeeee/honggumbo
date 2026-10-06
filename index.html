@@ -263,10 +263,10 @@ const tapFx = (e, txt) => {
 // 🥊 관장님 스파링 강제 소집 (운동 3일 연속 안 하면): 좌우 글러브를 번갈아 눌러 훅 30번 (7초)
 // 같은 쪽 연타는 막힘 + 관장님 회복. 더블탭 확대 방지를 위해 글러브는 touch-action:none + preventDefault
 async function spar() {
-  s.done.spar = true; s.idle = 0;
+  const noshow = s.idle >= 3; s.done.spar = true; s.idle = 0;
   const NEED = 30, MS = 7000;
   await stageAlert({ kind: 'alert', tape: '관장님 출동', icon: '🥊', title: '스파링 강제 소집!',
-    text: `관장님: "3일째 노쇼? 링 위로 올라와."<br><b>왼손·오른손 번갈아 훅! ${MS / 1000}초 안에 ${NEED}번</b><br>같은 손 연타는 막힘` });
+    text: `관장님: "${noshow ? '3일째 노쇼? 링 위로 올라와.' : '요즘 운동은 하나 보자. 링 위로 올라와.'}"<br><b>왼손·오른손 번갈아 훅! ${MS / 1000}초 안에 ${NEED}번</b><br>같은 손 연타는 막힘` });
   return new Promise(done => {
     miniOpen(`<div class="mt">🥊 관장님 스파링</div><div class="ms" id="sm">좌우 번갈아 훅!</div>
       <div class="mb"><i id="hp"></i></div><div class="big" id="boss">😤</div><div class="mb t"><i id="tm"></i></div>
@@ -306,32 +306,32 @@ async function spar() {
   });
 }
 
-// 🍗 치킨창민 일당 치킨 습격: 6초 동안 떨어지는 치킨을 탭해서 쳐내기. 놓치면 마리당 +0.5kg
+// 🍗 치킨창민 일당 치킨 습격: 6초 동안 떨어지는 치킨을 탭해서 쳐내기. 놓치면 마리당 +0.4kg
 async function chickenBoss() {
   s.done.chicken = true;
-  await stageAlert({ kind: 'alert', tape: '치킨 습격', icon: '🍗', title: '치킨 14마리 습격!', text: '치킨창민 일당이 문을 박차고 들어왔다.<br><b>떨어지는 치킨을 탭해서 쳐내!</b>' });
+  await stageAlert({ kind: 'alert', tape: '치킨 습격', icon: '🍗', title: '치킨 22마리 습격!', text: '치킨창민 일당이 문을 박차고 들어왔다.<br><b>떨어지는 치킨을 탭해서 쳐내!</b>' });
   return new Promise(done => {
-    miniOpen('<div class="mt">🍗 치킨 습격!</div><div class="ms" id="cs">놓치면 마리당 +0.5kg</div>');
-    let missed = 0, hit = 0, spawned = 0, resolved = 0, ended = false; const TOTAL = 14;
+    miniOpen('<div class="mt">🍗 치킨 습격!</div><div class="ms" id="cs">놓치면 마리당 +0.4kg</div>');
+    let missed = 0, hit = 0, spawned = 0, resolved = 0, ended = false; const TOTAL = 22, KG = 0.4;
     const settle = () => { if (++resolved >= TOTAL) setTimeout(end, 300); }; // 쳐내든 놓치든 전부 처리되면 끝
-    const guard = setTimeout(() => end(), 12000); // 안전장치
+    const guard = setTimeout(() => end(), 14000); // 안전장치
     const spawn = () => {
       if (spawned >= TOTAL) return; spawned++;
       const c = document.createElement('div'); c.className = 'chk'; c.textContent = '🍗'; c.style.left = (6 + Math.random() * 76) + '%';
       c.style.setProperty('--d', (1.5 + Math.random() * 0.9) + 's');
       c.onpointerdown = e => { e.stopPropagation(); if (c.dead) return; c.dead = true; hit++; Sfx.play('punch'); tapFx(e, '쳐냄!'); c.remove(); settle(); };
-      c.onanimationend = () => { if (c.dead) return; c.dead = true; missed++; Sfx.play('chomp'); c.remove(); $('cs').textContent = `놓침 ${missed}마리 (+${(missed * 0.5).toFixed(1)}kg)`; settle(); };
+      c.onanimationend = () => { if (c.dead) return; c.dead = true; missed++; Sfx.play('chomp'); c.remove(); $('cs').textContent = `놓침 ${missed}마리 (+${(missed * KG).toFixed(1)}kg)`; settle(); };
       mini().append(c);
     };
-    const iv = setInterval(() => { spawn(); if (spawned >= TOTAL) clearInterval(iv); }, 430);
+    const iv = setInterval(() => { spawn(); if (spawned >= TOTAL) clearInterval(iv); }, 330);
     const end = () => {
       if (ended) return; ended = true; clearInterval(iv); clearTimeout(guard);
-      s.w += missed * 0.5;
+      s.w += missed * KG;
       chat(missed === 0 ? ['치킨창민', '전부 쳐냈다고? 배신자... 🍗'] : ['치킨창민', `${missed}마리 드셨네요 ㅋㅋ 역시 우리 편`]);
       if (missed === 0) { s.will = Math.min(100, s.will + 15); Sfx.play('fanfare'); }
       setTimeout(async () => { miniClose(); stats();
         await stageAlert({ kind: missed === 0 ? 'good' : 'alert', icon: missed === 0 ? '🛡️' : '🍗', title: missed === 0 ? '치킨 완전 방어!' : `치킨 ${missed}마리 섭취`,
-          text: missed === 0 ? '의지력 <b>+15</b>' : `<b>+${(missed * 0.5).toFixed(1)}kg</b>` }); done(); }, 600);
+          text: missed === 0 ? '의지력 <b>+15</b>' : `<b>+${(missed * KG).toFixed(1)}kg</b>` }); done(); }, 600);
     };
   });
 }
@@ -515,8 +515,9 @@ async function day(id) {
       else { s.events = []; w = s.w; skipTemptation(s); }
       show(w); $('btns').classList.add('wait');
       await sleep(500); await snapShame(); await events();
-      if (!s.over && s.idle >= 3 && !s.done.spar) { await sleep(400); await spar(); }
-      else if (!s.over && s.day >= 10 && !s.done.chicken && Math.random() < 0.25) { await sleep(400); await chickenBoss(); }
+      // 특별 이벤트는 판마다 무조건 1회씩 (하루에 하나만, 겹치면 다음 날로)
+      if (!s.over && !s.done.spar && (s.idle >= 3 || s.day >= s.sparDay)) { await sleep(400); await spar(); }
+      else if (!s.over && !s.done.chicken && s.day >= s.chickenDay) { await sleep(400); await chickenBoss(); }
       const gain = s.w - w0;
       if (!s.over && gain >= 2.5 && s.day - lastInterview >= 6 && Math.random() < 0.15) { await sleep(400); await interview(gain); await sleep(1200); }
     }
@@ -556,7 +557,7 @@ function render() {
 }
 
 function end(add) {
-  $('btns').className = 'two';
+  $('btns').className = busy ? 'two wait' : 'two'; // 마지막 날 처리가 끝나야 다시 도전/공유를 누를 수 있음
   const badges = (s.badges.length ? `<div class="badges">${s.badges.map(b => `<span class="badge">${b}</span>`).join('')}</div>` : '')
     + `<div class="bets"><b>🎲 내기 결과</b><br>${betLines(true)}</div>`
     + (album.length ? `<div style="margin-top:8px"><b>📸 소주래인의 박제 앨범 (${album.length}장)</b></div><div class="album">${album.map((a, i) =>
@@ -583,6 +584,9 @@ function end(add) {
 
 // 새 판 시작 (새로고침 없이 상태를 전부 초기화: 인앱 브라우저 캐시/스크롤 복원 문제 회피)
 function startRun() {
+  // 가장 빨리 끝나는 판(불닭만 먹기)도 8일차쯤이라 그 전에 무조건 보이게
+  s.sparDay = 3 + Math.floor(Math.random() * 4);     // 3~6일차
+  s.chickenDay = 5 + Math.floor(Math.random() * 3);  // 5~7일차
   chat(['지코치님', '회원님 오늘부터라고요? 대체 살 언제 빼요?']);
   bets = makeBets();
   s.log.push(`<div class="bets"><b>🎲 친구들 내기판</b><br>${betLines(false)}</div>`);
