@@ -76,7 +76,7 @@
   .ban .tx{font-size:14px;line-height:1.45}.ban .tx b{color:#e53935;font-weight:400}.ban .tx small{display:block;color:#aaa;font-size:11px;margin-top:2px}
   #btns.wait{opacity:.45;pointer-events:none}
   /* 특별 이벤트 미니게임 */
-  #mini{position:absolute;inset:0;z-index:12;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#000b;border-radius:18px;user-select:none;-webkit-user-select:none;touch-action:manipulation;overflow:hidden}
+  #mini{position:absolute;inset:0;z-index:12;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14px;gap:6px;background:#000b;border-radius:18px;user-select:none;-webkit-user-select:none;touch-action:manipulation;overflow:hidden}
   #mini.on{display:flex}
   #mini .mt{font-size:22px;color:#ffd600;text-shadow:0 2px 0 #000}
   #mini .ms{font-size:13px;color:#fff}
@@ -84,7 +84,14 @@
   #mini .mb i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff5252,#ffd600);transition:width .1s}
   #mini .mb.t i{background:linear-gradient(90deg,#26a69a,#80cbc4);transition:width .1s linear}
   #mini .big{font-size:76px;line-height:1;transition:transform .05s}
-  #mini .big.hit{transform:scale(.8) rotate(-8deg)}
+  #mini .big{transition:transform .08s}
+  .glove{position:absolute;bottom:12px;width:92px;height:92px;border-radius:50%;font-size:44px;line-height:1;padding:0;background:#ffffffe6;box-shadow:0 5px 0 #b71c1c;border:3px solid #b71c1c;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  .glove small{display:block;font-size:12px;color:#b71c1c;margin-top:2px}
+  .glove.l{left:12px}.glove.r{right:12px}.glove.r{transform:scaleX(-1)}.glove.r small{transform:scaleX(-1)}
+  .glove:active{transform:none;box-shadow:0 5px 0 #b71c1c}.glove.r:active{transform:scaleX(-1)}
+  .glove.l.punch{animation:punchL .15s}.glove.r.punch{animation:punchR .15s}
+  @keyframes punchL{50%{transform:translate(26px,-18px) rotate(25deg) scale(1.15)}}
+  @keyframes punchR{50%{transform:scaleX(-1) translate(26px,-18px) rotate(25deg) scale(1.15)}}
   #mini .pop{position:absolute;font-size:26px;pointer-events:none;animation:up 0.7s forwards;color:#fff;text-shadow:0 2px 0 #000}
   .chk{position:absolute;top:-50px;font-size:42px;animation:fall var(--d,2s) linear forwards;cursor:pointer}
   @keyframes fall{to{transform:translateY(360px) rotate(240deg)}}
@@ -253,29 +260,48 @@ const tapFx = (e, txt) => {
   p.style.left = (e.clientX - r.left - 14) + 'px'; p.style.top = (e.clientY - r.top - 20) + 'px'; mini().append(p); setTimeout(() => p.remove(), 700);
 };
 
-// 🥊 관장님 스파링 강제 소집 (운동 3일 연속 안 하면): 6초 안에 연타 20번
+// 🥊 관장님 스파링 강제 소집 (운동 3일 연속 안 하면): 좌우 글러브를 번갈아 눌러 훅 30번 (7초)
+// 같은 쪽 연타는 막힘 + 관장님 회복. 더블탭 확대 방지를 위해 글러브는 touch-action:none + preventDefault
 async function spar() {
   s.done.spar = true; s.idle = 0;
-  await stageAlert({ kind: 'alert', tape: '관장님 출동', icon: '🥊', title: '스파링 강제 소집!', text: '관장님: "3일째 노쇼? 링 위로 올라와."<br><b>6초 안에 펀치 20번!</b>' });
+  const NEED = 30, MS = 7000;
+  await stageAlert({ kind: 'alert', tape: '관장님 출동', icon: '🥊', title: '스파링 강제 소집!',
+    text: `관장님: "3일째 노쇼? 링 위로 올라와."<br><b>왼손·오른손 번갈아 훅! ${MS / 1000}초 안에 ${NEED}번</b><br>같은 손 연타는 막힘` });
   return new Promise(done => {
-    miniOpen(`<div class="mt">🥊 관장님 스파링</div><div class="ms">화면을 미친듯이 연타!</div>
-      <div class="mb"><i id="hp"></i></div><div class="big" id="boss">😤</div><div class="mb t"><i id="tm"></i></div>`);
-    let hit = 0, over = false; const NEED = 20, MS = 6000, t0 = performance.now();
+    miniOpen(`<div class="mt">🥊 관장님 스파링</div><div class="ms" id="sm">좌우 번갈아 훅!</div>
+      <div class="mb"><i id="hp"></i></div><div class="big" id="boss">😤</div><div class="mb t"><i id="tm"></i></div>
+      <button class="glove l" data-s="L">🥊<small>왼손</small></button><button class="glove r" data-s="R">🥊<small>오른손</small></button>`);
+    let hp = NEED, last = '', over = false; const t0 = performance.now();
+    const boss = () => $('boss');
     const fin = win => {
-      if (over) return; over = true; clearInterval(iv); mini().onpointerdown = null;
-      $('boss').textContent = win ? '😵' : '😏'; if (!win) $('stage').classList.add('ko');
+      if (over) return; over = true; clearInterval(iv);
+      boss().textContent = win ? '😵' : '😏'; if (!win) $('stage').classList.add('ko');
       setTimeout(() => $('stage').classList.remove('ko'), 700);
       Sfx.play(win ? 'fanfare' : 'fail');
       if (win) { s.w -= 3; s.will = Math.min(100, s.will + 10); chat(['관장님', '...오늘은 인정한다. 내일도 와라']); window.confetti?.({ particleCount: 100, spread: 80, zIndex: 60 }); }
-      else { s.will = Math.max(0, s.will - 30); s.w += 0.5; chat(['관장님', '펀치가 솜방망이네? KO 완료 ㅋㅋ']); }
+      else { s.will = Math.max(0, s.will - 30); s.w += 0.5; chat(['관장님', '훅이 솜방망이네? KO 완료 ㅋㅋ']); }
       setTimeout(async () => { miniClose(); stats(); await stageAlert({ kind: win ? 'good' : 'alert', icon: win ? '🏆' : '💫', title: win ? '관장님 KO승!' : '금보 KO패',
         text: win ? '<b>-3kg</b> · 의지력 +10' : '의지력 <b>-30</b> · +0.5kg' }); done(); }, 900);
     };
-    mini().onpointerdown = e => {
-      if (over) return; hit++; Sfx.play('punch'); tapFx(e, ['펀치!', '퍽!', '콰앙!'][hit % 3]);
-      $('boss').classList.add('hit'); setTimeout(() => $('boss')?.classList.remove('hit'), 60);
-      $('hp').style.width = Math.max(0, 100 - hit / NEED * 100) + '%'; if (hit >= NEED) fin(true);
-    };
+    mini().querySelectorAll('.glove').forEach(g => {
+      g.addEventListener('dblclick', e => e.preventDefault());
+      g.onpointerdown = e => {
+        e.preventDefault(); if (over) return;
+        const side = g.dataset.s;
+        g.classList.remove('punch'); void g.offsetWidth; g.classList.add('punch');
+        if (side === last) { // 같은 손 연타 → 가드에 막힘, 관장님 회복
+          hp = Math.min(NEED, hp + 2); Sfx.play('beep'); tapFx(e, '막힘!'); $('sm').textContent = '같은 손 연타는 막힌다! 번갈아!';
+          boss().textContent = '😏';
+        } else {
+          hp--; last = side; Sfx.play('punch'); tapFx(e, side === 'L' ? '레프트 훅!' : '라이트 훅!'); $('sm').textContent = `남은 훅 ${hp}`;
+          boss().textContent = hp < NEED / 3 ? '😵‍💫' : '😣';
+          boss().style.transform = `rotate(${side === 'L' ? 18 : -18}deg) translateX(${side === 'L' ? 14 : -14}px)`;
+          setTimeout(() => { if (boss()) boss().style.transform = ''; }, 90);
+        }
+        $('hp').style.width = (hp / NEED * 100) + '%';
+        if (hp <= 0) fin(true);
+      };
+    });
     const iv = setInterval(() => { const left = 1 - (performance.now() - t0) / MS; $('tm').style.width = Math.max(0, left * 100) + '%'; if (left <= 0) fin(false); }, 60);
   });
 }
